@@ -1,7 +1,7 @@
 {
-    "name": "jasny/mvc",
-    "description": "The basics for an MVC application",
-    "keywords": ["MVC", "controller", "routing", "router"],
+    "name": "jasny/router",
+    "description": "A versatile router for PHP",
+    "keywords": ["MVC", "routing", "router"],
     "license": "MIT",
     "authors": [
         {
@@ -11,16 +11,16 @@
         }
     ],
     "support": {
-        "issues": "https://github.com/jasny/mvc/issues",
-        "source": "https://github.com/jasny/mvc"
+        "issues": "https://github.com/jasny/router/issues",
+        "source": "https://github.com/jasny/router"
     },
     "require": {
-        "php": ">=5.4.0",
+        "php": ">=5.6.0",
         "jasny/php-functions": "^2.0"
     },
     "autoload": {
         "psr-4": {
-            "Jasny\\MVC\\": "src/"
+            "Jasny\\": "src/"
         }
     }
 }

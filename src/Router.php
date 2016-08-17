@@ -1,6 +1,6 @@
 <?php
 
-namespace Jasny\MVC;
+namespace Jasny;
 
 /**
  * Route pretty URLs to correct controller
