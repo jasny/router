@@ -229,39 +229,6 @@ class Router
         return isset($this->route);
     }
 
-    /**
-     * Find a matching route
-     * 
-     * @param string $method
-     * @param string $url
-     * @return string
-     */
-    protected function findRoute($method, $url)
-    {
-        $this->getRoutes(); // Make sure the routes are initialised
-        $ret = null;
-        
-        if ($url !== '/') $url = rtrim($url, '/');
-        if (substr($url, 0, 2) == '/:') $url = substr($url, 2);
-
-        foreach (array_keys($this->routes) as $route) {
-            if (strpos($route, ' ') !== false && preg_match_all('/\s+\+(\w+)\b|\s+\-(\w+)\b/', $route, $matches)) {
-                list($path) = preg_split('/\s+/', $route, 2);
-                $inc = isset($matches[1]) ? array_filter($matches[1]) : [];
-                $excl = isset($matches[2]) ? array_filter($matches[2]) : [];
-            } else {
-                $path = $route;
-                $inc = $excl = [];
-            }
-            
-            if ($path !== '/') $path = rtrim($path, '/');
-            if ($this->fnmatch($path, $url)) {
-                if ((empty($inc) || in_array($method, $inc)) && !in_array($method, $excl)) return $route;
-            }
-        }
-
-        return $ret;
-    }
 
     /**
      * Get a matching route.
@@ -383,30 +350,6 @@ class Router
         return call_user_func_array($route->fn, $args);
     }
     
-    /**
-     * Route to a file
-     * 
-     * @param object $route
-     * @return mixed|boolean
-     */
-    protected function routeToFile($route)
-    {
-        $file = ltrim($route->file, '/');
-
-        if (!file_exists($file)) {
-            trigger_error("Failed to route using '{$route->route}': File '$file' doesn't exist.", E_USER_WARNING);
-            return false;
-        }
-
-        if ($route->file[0] === '~' || strpos($route->file, '..') !== false || strpos($route->file, ':') !== false) {
-            $warn = "Won't route using '{$route->route}': '~', '..' and ':' not allowed in filename.";
-            trigger_error($warn, E_USER_WARNING);
-            return false;
-        }
-        
-        return include $file;
-    }
-    
 
     /**
      * Execute the action.
@@ -521,128 +464,6 @@ class Router
             if (!isset($message)) $message = "Sorry, an unexpected error occured";
             self::outputError($httpCode, $message);
         }
-    }
-    
-    
-    /**
-     * Get parts of a URL path
-     * 
-     * @param string $url
-     * @return array
-     */
-    public static function splitUrl($url)
-    {
-        $path = parse_url(trim($url, '/'), PHP_URL_PATH);
-        return $path ? explode('/', $path) : array();
-    }
-
-    /**
-     * Match path against wildcard pattern.
-     * 
-     * @param string $pattern
-     * @param string $path
-     * @return boolean
-     */
-    protected static function fnmatch($pattern, $path)
-    {
-        return \Jasny\fnmatch($pattern, $path);
-    }
-
-    /**
-     * Fill out the routes variables based on the url parts.
-     * 
-     * @param array|object $vars   Route variables
-     * @param array        $parts  URL parts
-     * @return array
-     */
-    protected static function bind($vars, array $parts)
-    {
-        $values = [];
-        $type = is_array($vars) && is_int(reset(array_keys($vars))) ? 'numeric' : 'assoc';
-
-        foreach ($vars as $key => $var) {
-            if (!isset($var)) continue;
-            
-            if (is_object($var) && !$var instanceof \stdClass) {
-                $part = array($var);
-            } elseif (!is_scalar($var)) {
-                $part = array(static::bind($var, $parts));
-            } elseif ($var[0] === '$') {
-                $options = array_map('trim', explode('|', $var));
-                $part = static::bindVar($type, $parts, $options);
-            } elseif ($var[0] === '~' && substr($var, -1) === '~') {
-                $pieces = array_map('trim', explode('~', substr($var, 1, -2)));
-                $bound = array_filter(static::bind($pieces, $parts));
-                $part = array(join('', $bound));
-            } else {
-                $part = array($var);
-            }
-            
-            if ($type === 'assoc') {
-                $values[$key] = $part[0];
-            } else {
-                $values = array_merge($values, $part);
-            }
-        }
-
-        if (is_object($vars) && $type === 'assoc') {
-            $values = (object)$values;
-        }
-        
-        return $values;
-    }
-    
-    /**
-     * Bind variable
-     * 
-     * @param string $type     'assoc or 'numeric'
-     * @param array  $parts
-     * @param array  $options
-     * @return array
-     */
-    protected static function bindVar($type, array $parts, array $options)
-    {
-        foreach ($options as $option) {
-            // Normal string
-            if ($option[0] !== '$') return [$option];
-
-            // Super global
-            if (preg_match('/^(\$_(GET|POST|COOKIE|ENV))\[([^\[]*)\]$/i', $option, $matches)) {
-                if (isset(${$matches[1]}[$matches[2]])) return array(${$matches[1]}[$matches[2]]);
-                continue;
-            }
-
-            // Request header
-            if (preg_match('/^\$([A-Z_]+)$/', $option, $matches)) {
-                if (isset($_SERVER[$matches[1]])) return array($_SERVER[$matches[1]]);
-                continue;
-            }
-            
-            // Multiple parts
-            if (substr($option, -3) === '...') {
-                if (!ctype_digit(substr($option, 1, -3))) return [$option];
-                
-                $i = (int)substr($option, 1, -3);
-                
-                if ($type === 'assoc') {
-                    trigger_error("Binding multiple parts using '$option'"
-                        . " is only allowed in numeric arrays", E_USER_WARNING);
-                    return array(null);
-                }
-
-                return array_slice($parts, $i-1);
-            }
-            
-            // Single part
-            if (!ctype_digit(substr($option, 1))) return [$option];
-            
-            $i = (int)substr($option, 1);
-            
-            $part = array_slice($parts, $i-1, 1);
-            if (!empty($part)) return $part;
-        }
-        
-        return array(null);
     }
     
     
