@@ -1,11 +1,15 @@
 <?php
 
+namespace Jasny\Route;
+
+use Jasny\Route;
+
 /**
  * Description of Callback
  *
  * @author arnold
  */
-class Callback
+class Callback extends Route
 {
     //put your code here
 }
