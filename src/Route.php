@@ -5,7 +5,7 @@ namespace Jasny;
 /**
  * A route
  */
-class Route extends stdClass
+class Route extends \stdClass
 {
     /**
      * Class constructor
@@ -27,19 +27,19 @@ class Route extends stdClass
      */
     public static function create($values)
     {
-        if ($values instanceof stdClass) {
+        if ($values instanceof \stdClass) {
             $values = get_object_vars($values);
         }
         
         if (isset($values['controller'])) {
-            $callback = Jasny\array_only($values, ['controller', 'action']) + ['action' => 'default'];
+            $callback = \Jasny\array_only($values, ['controller', 'action']) + ['action' => 'default'];
             $route = new Route\Callback($callback, $values);
         } elseif (isset($values['fn'])) {
-            $route = new Route\Callback($values['fn'], $values);
+            $route = new Route\Callback(['fn' => $values['fn']], $values);
         } elseif (isset($values['file'])) {
-            $route = new Route\PhpScript($values['file'], $values);
+            $route = new Route\PhpScript('', $values['file'], $values);
         } else {
-            throw new \Exception("Route has neither 'controller', 'fn' or 'file' defined");
+            throw new \InvalidArgumentException("Route has neither 'controller', 'fn' or 'file' defined");
         }
         
         return $route;

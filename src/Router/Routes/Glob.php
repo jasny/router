@@ -5,7 +5,8 @@ namespace Jasny\Router\Routes;
 use ArrayObject;
 use Jasny\Router\UrlParsing;
 use Jasny\Router\Routes;
-use Psr\Http\Message\ServerRequestInterface as ServerRequest;
+use Jasny\Route;
+use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * Match URL against a shell wildcard pattern. 
@@ -88,7 +89,7 @@ class Glob extends ArrayObject implements Routes
      */
     public function exchangeArray($input)
     {
-        $routes = $this->createRoutes();
+        $routes = $this->createRoutes($input);
         return parent::exchangeArray($routes);
     }
 
@@ -100,7 +101,7 @@ class Glob extends ArrayObject implements Routes
      */
     public function offsetSet($pattern, $value)
     {
-        if (!isset($pattern)) {
+        if (empty($pattern)) {
             throw new \BadMethodCallException("Unable to append a Route without a pattern");
         }
         
@@ -172,11 +173,11 @@ class Glob extends ArrayObject implements Routes
      * Fill out the routes variables based on the url parts.
      * 
      * @param array|\stdClass $vars     Route variables
-     * @param ServerRequest   $request
+     * @param ServerRequestInterface   $request
      * @param array           $parts    URL parts
      * @return array
      */
-    protected function bind($vars, ServerRequest $request, array $parts)
+    protected function bind($vars, ServerRequestInterface $request, array $parts)
     {
         $values = [];
         $type = is_array($vars) && array_keys($vars) === array_keys(array_keys($vars)) ? 'numeric' : 'assoc';
@@ -187,13 +188,13 @@ class Glob extends ArrayObject implements Routes
             if (is_object($var) && !$var instanceof \stdClass) {
                 $part = array($var);
             } elseif (!is_scalar($var)) {
-                $part = array($this->bind($var, $parts));
+                $part = array($this->bind($var, $request, $parts));
             } elseif ($var[0] === '$') {
                 $options = array_map('trim', explode('|', $var));
                 $part = $this->bindVar($type, $request, $parts, $options);
             } elseif ($var[0] === '~' && substr($var, -1) === '~') {
-                $pieces = array_map('trim', explode('~', substr($var, 1, -2)));
-                $bound = array_filter($this->bind($pieces, $parts));
+                $pieces = array_map('trim', explode('~', substr($var, 1, -1)));
+                $bound = array_filter($this->bind($pieces, $request, $parts));
                 $part = array(join('', $bound));
             } else {
                 $part = array($var);
@@ -218,23 +219,23 @@ class Glob extends ArrayObject implements Routes
     /**
      * Bind variable
      * 
-     * @param string        $type     'assoc' or 'numeric'
-     * @param ServerRequest $request
-     * @param array         $parts
-     * @param array         $options
+     * @param string                 $type     'assoc' or 'numeric'
+     * @param ServerRequestInterface $request
+     * @param array                  $parts
+     * @param array                  $options
      * @return array
      */
-    protected function bindVar($type, ServerRequest $request, array $parts, array $options)
+    protected function bindVar($type, ServerRequestInterface $request, array $parts, array $options)
     {
         foreach ($options as $option) {
             $value = null;
             
             $bound = 
                 $this->bindVarString($option, $value) ||
-                $this->bindVarSuperGlobal($option, $value) ||
+                $this->bindVarSuperGlobal($option, $request, $value) ||
                 $this->bindVarRequestHeader($option, $request, $value) ||
                 $this->bindVarMultipleUrlParts($option, $type, $parts, $value) ||
-                $this->bindVarSingleUrlPart($option, $value);
+                $this->bindVarSingleUrlPart($option, $parts, $value);
             
             if ($bound && isset($value)) {
                 return $value;
@@ -251,7 +252,7 @@ class Glob extends ArrayObject implements Routes
      * @param mixed  $value   OUTPUT
      * @return boolean
      */
-    protected function bindVarString($option, $value)
+    protected function bindVarString($option, &$value)
     {
         if ($option[0] !== '$') {
             $value = [$option];
@@ -268,11 +269,23 @@ class Glob extends ArrayObject implements Routes
      * @param mixed  $value   OUTPUT
      * @return boolean
      */
-    protected function bindVarSuperGlobal($option, $value)
+    protected function bindVarSuperGlobal($option, ServerRequestInterface $request, &$value)
     {
-        if (preg_match('/^(\$_(GET|POST|COOKIE|ENV))\[([^\[]*)\]$/i', $option, $matches)) {
+        if (preg_match('/^\$_(GET|POST|COOKIE)\[([^\[]*)\]$/i', $option, $matches)) {
             list(, $var, $key) = $matches;
-            $value = isset(${$var}[$key]) ? array(${$var}[$key]) : null;
+
+            $var = strtolower($var);
+            $data = null;
+
+            if ($var === 'get') {
+                $data = $request->getQueryParams();                
+            } elseif ($var === 'post') {
+                $data = $request->getParsedBody();
+            } elseif ($var === 'cookie') {
+                $data = $request->getCookieParams();
+            }
+
+            $value = isset($data[$key]) ? [$data[$key]] : null;
             return true;
         }
         
@@ -282,18 +295,18 @@ class Glob extends ArrayObject implements Routes
     /**
      * Bind variable when option is a request header
      * 
-     * @param string        $option
-     * @param ServerRequest $request
-     * @param mixed         $value   OUTPUT
+     * @param string                 $option
+     * @param ServerRequestInterface $request
+     * @param mixed                  $value   OUTPUT
      * @return boolean
      */
-    protected function bindVarRequestHeader($option, ServerRequest $request, $value)
+    protected function bindVarRequestHeader($option, ServerRequestInterface $request, &$value)
     {
         if (preg_match('/^\$(?:HTTP_)?([A-Z_]+)$/', $option, $matches)) {
             $sentence = preg_replace('/[\W_]+/', ' ', $matches[1]);
             $name = str_replace(' ', '-', ucwords($sentence));
             
-            $value = $request->getHeaderLine($name);
+            $value = [$request->getHeaderLine($name)];
             return true;
         }
         
@@ -309,15 +322,13 @@ class Glob extends ArrayObject implements Routes
      * @param mixed  $value   OUTPUT
      * @return boolean
      */
-    protected function bindVarMultipleUrlParts($option, $type, array $parts, $value)
+    protected function bindVarMultipleUrlParts($option, $type, array $parts, &$value)
     {
         if (substr($option, -3) === '...' && ctype_digit(substr($option, 1, -3))) {
             $i = (int)substr($option, 1, -3);
 
             if ($type === 'assoc') {
-                trigger_error("Binding multiple parts using '$option' is only allowed in numeric arrays",
-                    E_USER_WARNING);
-                $value = [null];
+                throw new \InvalidArgumentException("Binding multiple parts using '$option' is only allowed in numeric arrays");
             } else {
                 $value = array_slice($parts, $i - 1);
             }
@@ -336,7 +347,7 @@ class Glob extends ArrayObject implements Routes
      * @param mixed  $value   OUTPUT
      * @return boolean
      */
-    protected function bindVarSingleUrlPart($option, array $parts, $value)
+    protected function bindVarSingleUrlPart($option, array $parts, &$value)
     {
         if (ctype_digit(substr($option, 1))) {
             $i = (int)substr($option, 1);
@@ -355,10 +366,10 @@ class Glob extends ArrayObject implements Routes
     /**
      * Check if a route for the URL exists
      * 
-     * @param ServerRequest $request
+     * @param ServerRequestInterface $request
      * @return boolean
      */
-    public function hasRoute(ServerRequest $request)
+    public function hasRoute(ServerRequestInterface $request)
     {
         $route = $this->findRoute($request->getUri(), $request->getMethod());
         return isset($route);
@@ -367,10 +378,10 @@ class Glob extends ArrayObject implements Routes
     /**
      * Get route for the request
      * 
-     * @param ServerRequest $request
+     * @param ServerRequestInterface $request
      * @return Route
      */
-    public function getRoute(ServerRequest $request)
+    public function getRoute(ServerRequestInterface $request)
     {
         $url = $request->getUri();
         $route = $this->findRoute($url, $request->getMethod());
