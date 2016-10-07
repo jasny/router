@@ -25,18 +25,37 @@ abstract class Runner
     {
         $this->route = $route;
     }
+
     
     /**
      * Invoke the action specified in the route
      * 
      * @param RequestInterface  $request
      * @param ResponseInterface $response
+     * @return ResponseInterface
+     */
+    abstract public function run(RequestInterface $request, ResponseInterface $response);
+    
+    /**
+     * Invoke the action specified in the route and call the next method
+     * 
+     * @param RequestInterface  $request
+     * @param ResponseInterface $response
      * @param callback          $next      Callback for if runner is used as middleware
      * @return ResponseInterface
      */
-    abstract public function __invoke(RequestInterface $request, ResponseInterface $response, $next = null);
-    
-        
+    public function __invoke(RequestInterface $request, ResponseInterface $response, $next = null)
+    {
+        $response = $this->run($request, $response);
+
+        if (isset($next)) {
+            $response = call_user_func($next, $request, $response);
+        }
+
+        return $response;
+    }
+
+
     /**
      * Factory method
      * 
@@ -59,3 +78,4 @@ abstract class Runner
         return new $class($route);
     }
 }
+
