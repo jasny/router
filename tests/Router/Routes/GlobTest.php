@@ -96,7 +96,7 @@ class GlobTest extends PHPUnit_Framework_TestCase
      */
     public function testOffsetSet($pattern, $options, $exception)
     {
-        if ($exception) $this->expectException($exception);
+        if ($exception) $this->setExpectedException($exception);
 
         $glob = new Glob();
         $glob->offsetSet($pattern, $options);
@@ -128,12 +128,12 @@ class GlobTest extends PHPUnit_Framework_TestCase
 
     /**
      * Test ArrayObject::append method
+     *
+     * @expectedException BadMethodCallException
      */
     public function testAppend()
     {
         $glob = new Glob();
-
-        $this->expectException(BadMethodCallException::class);
         $glob->append(['controller' => 'bar']);
     }
 
@@ -314,7 +314,7 @@ class GlobTest extends PHPUnit_Framework_TestCase
      */
     public function testBindVarMultipleUrlParts($uri, $options, $positive, $exception)
     {
-        if ($exception) $this->expectException(InvalidArgumentException::class);
+        if ($exception) $this->setExpectedException(InvalidArgumentException::class);
 
         $values = [$uri => $options];
         $glob = new Glob($values);
@@ -402,7 +402,7 @@ class GlobTest extends PHPUnit_Framework_TestCase
      */
     public function getServerRequest($uri, $method = 'GET', $globals = [], $header = '')
     {
-        $request = $this->createMock(ServerRequestInterface::class);
+        $request = $this->getMock(ServerRequestInterface::class);
         $request->method('getUri')->willReturn($uri);
         $request->method('getMethod')->willReturn($method);
         $request->method('getQueryParams')->willReturn(isset($globals['get']) ? $globals['get'] : []);
