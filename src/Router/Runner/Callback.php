@@ -14,7 +14,7 @@ use Psr\Http\Message\ResponseInterface;
 class Callback extends Runner
 {
     /**
-     * Route to a file
+     * Use function to handle request and response
      * 
      * @param RequestInterface  $request
      * @param ResponseInterface $response
@@ -22,6 +22,12 @@ class Callback extends Runner
      */
     public function run(RequestInterface $request, ResponseInterface $response)
     {
+        $callback = !empty($this->route->fn) ? $this->route->fn : null;
 
+        if (!is_callable($callback)) {
+            throw new \RuntimeException("'fn' property of route shoud be a callable");
+        }
+
+        return call_user_func($callback, $request, $response);
     }
 }

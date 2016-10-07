@@ -14,6 +14,9 @@ class RunnerTest extends PHPUnit_Framework_TestCase
      * Test creating Runner object using factory method
      *
      * @dataProvider createProvider
+     * @param Route $route 
+     * @param string $class          Runner class to use
+     * @param boolean $positive 
      */
     public function testCreate($route, $class, $positive)
     {   
@@ -24,7 +27,7 @@ class RunnerTest extends PHPUnit_Framework_TestCase
         if (!$positive) return;
 
         $this->assertInstanceOf($class, $runner, "Runner object has invalid class");
-        $this->assertEquals($route, $runner->getRoute());
+        $this->assertEquals($route, $runner->getRoute(), "Route was not set correctly");
     }
 
     /**
@@ -57,20 +60,20 @@ class RunnerTest extends PHPUnit_Framework_TestCase
         }));
 
         $result = $runner($queries['request'], $queries['response']);
-        $this->assertEquals($result['request'], $queries['request']);
-        $this->assertEquals($result['response'], $queries['response']);
+        $this->assertEquals($result['request'], $queries['request'], "Request was not returned correctly from 'run'");
+        $this->assertEquals($result['response'], $queries['response'], "Response was not returned correctly from 'run'");
 
         #The same test with calling 'next' callback
         $result = $runner($queries['request'], $queries['response'], function($request, $prevResponse) use ($queries) {
-            $this->assertEquals($request, $queries['request']);
-            $this->assertEquals($prevResponse['request'], $queries['request']);
-            $this->assertEquals($prevResponse['response'], $queries['response']);
+            $this->assertEquals($request, $queries['request'], "Request is not correct in 'next'");
+            $this->assertEquals($prevResponse['request'], $queries['request'], "Prev response was not passed correctly to 'next'");
+            $this->assertEquals($prevResponse['response'], $queries['response'], "Prev response was not passed correctly to 'next'");
 
             return $queries + ['next_called' => true];
         });
 
-        $this->assertTrue($result['next_called']);
-        $this->assertEquals($result['request'], $queries['request']);
-        $this->assertEquals($result['response'], $queries['response']);
+        $this->assertTrue($result['next_called'], "'Next' callback was not called");
+        $this->assertEquals($result['request'], $queries['request'], "Request was not returned correctly from 'run' with 'next'");
+        $this->assertEquals($result['response'], $queries['response'], "Request was not returned correctly from 'run' with 'next'");
     }
 }
