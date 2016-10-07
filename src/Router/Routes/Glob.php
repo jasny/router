@@ -5,7 +5,7 @@ namespace Jasny\Router\Routes;
 use ArrayObject;
 use Jasny\Router\UrlParsing;
 use Jasny\Router\Routes;
-use Jasny\Route;
+use Jasny\Router\Route;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**

@@ -1,8 +1,8 @@
 <?php
 
-namespace Jasny\Route;
+namespace Jasny\Router\Route;
 
-use Jasny\Route;
+use Jasny\Router\Route;
 
 /**
  * Description of Callback
