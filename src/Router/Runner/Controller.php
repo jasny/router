@@ -7,11 +7,11 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * Description of Callback
+ * Description of Controller
  *
  * @author arnold
  */
-class Callback extends Runner
+class Controller extends Runner
 {
     /**
      * Route to a file
