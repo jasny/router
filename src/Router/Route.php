@@ -31,17 +31,6 @@ class Route extends \stdClass
             $values = get_object_vars($values);
         }
         
-        if (isset($values['controller'])) {
-            $callback = \Jasny\array_only($values, ['controller', 'action']) + ['action' => 'default'];
-            $route = new Route\Callback($callback, $values);
-        } elseif (isset($values['fn'])) {
-            $route = new Route\Callback(['fn' => $values['fn']], $values);
-        } elseif (isset($values['file'])) {
-            $route = new Route\PhpScript('', $values['file'], $values);
-        } else {
-            throw new \InvalidArgumentException("Route has neither 'controller', 'fn' or 'file' defined");
-        }
-        
-        return $route;
+        return new static($values);
     }
 }
