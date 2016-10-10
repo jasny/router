@@ -48,7 +48,7 @@ class Router
      */
     final public function run(ServerRequest $request, Response $response)
     {
-        return $this->handle($request, $response);
+        return $this->__invoke($request, $response);
     }
 
     /**
@@ -59,7 +59,7 @@ class Router
      * @param callback      $next
      * @return Response
      */
-    final public function __invoke(ServerRequest $request, Response $response, $next = null)
+    public function __invoke(ServerRequest $request, Response $response, $next = null)
     {
         return $this->handle($request, $response, $next);
     }
