@@ -1,10 +1,7 @@
 <?php
 
 use Jasny\Router\Route;
-use Jasny\Router\Runner;
-use Jasny\Router\Runner\Controller;
 use Jasny\Router\Runner\Callback;
-use Jasny\Router\Runner\PhpScript;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
