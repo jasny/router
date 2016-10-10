@@ -25,6 +25,6 @@
         }
     },
     "require-dev": {
-        "jasny/php-code-quality": "^1.2"
+        "jasny/php-code-quality": "^2.0"
     }
 }

@@ -1,73 +1,47 @@
 <?php
 
-namespace Jasny\Router\Route;
+namespace Jasny\Router\Runner;
 
-use Jasny\Router\Route;
-use Psr\Http\Message\ResponseInterface as Response;
+use Jasny\Router\Runner;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * Route to a PHP script
  */
-class PhpScript extends Route
-{
+class PhpScript extends Runner
+{        
     /**
-     * Route key
-     * @var string
-     */
-    protected $key;
-    
-    /**
-     * Script path
-     * @var string
-     */
-    public $file;
-    
-    
-    /**
-     * Class constructor
-     * 
-     * @param string $file
-     * @param string $values
-     */
-    public function __construct($key, $file, $values)
-    {
-        parent::__construct($values);
-        
-        $this->key = $key;
-        $this->file = $file;
-    }
-    
-    /**
-     * Return route key
+     * Return route file path
      * 
      * @return string
      */
     public function __toString()
     {
-        echo (string)$this->key;
-    }
-    
+        return (string)$this->route->file;
+    }    
     
     /**
      * Route to a file
      * 
-     * @param object $route
-     * @return Response|mixed
+     * @param RequestInterface  $request
+     * @param ResponseInterface $response
+     * @return ResponseInterface|mixed
      */
-    protected function execute()
+    public function run(RequestInterface $request, ResponseInterface $response)
     {
-        $file = ltrim($this->file, '/');
+        $file = !empty($this->route->file) ? ltrim($this->route->file, '/') : '';
 
         if (!file_exists($file)) {
-            trigger_error("Failed to route using '$this': File '$file' doesn't exist.", E_USER_WARNING);
-            return false;
+            throw new \RuntimeException("Failed to route using '$file': File '$file' doesn't exist.");
         }
 
-        if ($this->file[0] === '~' || strpos($this->file, '..') !== false || strpos($this->file, ':') !== false) {
-            trigger_error("Won't route using '$this': '~', '..' and ':' not allowed in filename.", E_USER_WARNING);
-            return false;
+        if ($file[0] === '~' || strpos($file, '..') !== false) {
+            throw new \RuntimeException("Won't route using '$file': '~', '..' are not allowed in filename.");
         }
         
-        return include $file;
+        $result = include $file;
+
+        return $result === true ? $response : $result;
     }
 }

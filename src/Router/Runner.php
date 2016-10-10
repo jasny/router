@@ -26,6 +26,15 @@ abstract class Runner
         $this->route = $route;
     }
 
+    /**
+     * Get runner route
+     *
+     * @return Route
+     */
+    public function getRoute()
+    {
+        return $this->route;
+    }
     
     /**
      * Invoke the action specified in the route
@@ -54,7 +63,6 @@ abstract class Runner
 
         return $response;
     }
-
 
     /**
      * Factory method
