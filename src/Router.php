@@ -40,42 +40,6 @@ class Router
     
     
     /**
-     * Set the webroot subdir from DOCUMENT_ROOT.
-     * 
-     * @param string $dir
-     * @return Router
-     */
-    public function setBase($dir)
-    {
-        $this->base = rtrim($dir, '/');
-        $this->route = null;
-
-        return $this;
-    }
-
-    /**
-     * Get the webroot subdir from DOCUMENT_ROOT.
-     * 
-     * @return string
-     */
-    public function getBase()
-    {
-        return $this->base;
-    }
-
-    /**
-     * Add a base path to the URL if the webroot isn't the same as the webservers document root
-     * 
-     * @param string $url
-     * @return string
-     */
-    public function rebase($url)
-    {
-        return ($this->getBase() ?: '/') . ltrim($url, '/');
-    }
-
-
-    /**
      * Run the action for the request
      *
      * @param ServerRequest $request
