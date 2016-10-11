@@ -3,7 +3,7 @@
 namespace Jasny\Router\Runner;
 
 use Jasny\Router\Runner;
-use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
@@ -16,11 +16,11 @@ class Callback extends Runner
     /**
      * Use function to handle request and response
      * 
-     * @param RequestInterface  $request
+     * @param ServerRequestInterface  $request
      * @param ResponseInterface $response
      * @return ResponseInterface|mixed
      */
-    public function run(RequestInterface $request, ResponseInterface $response)
+    public function run(ServerRequestInterface $request, ResponseInterface $response)
     {
         $callback = !empty($this->route->fn) ? $this->route->fn : null;
 

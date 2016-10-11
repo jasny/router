@@ -2,7 +2,7 @@
 
 use Jasny\Router\Route;
 use Jasny\Router\Runner\Controller;
-use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 class ControllerTest extends PHPUnit_Framework_TestCase
@@ -25,7 +25,7 @@ class ControllerTest extends PHPUnit_Framework_TestCase
         $runner = new Controller($route);
         $this->assertEquals($route, $runner->getRoute(), "Route was not set correctly");
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
 
         if (!$positive) $this->expectException(\RuntimeException::class);
@@ -111,7 +111,7 @@ class $class {
         \$this->route = \$route;    
     }
     
-    public function __invoke(Psr\Http\Message\RequestInterface \$request, Psr\Http\Message\ResponseInterface \$response)
+    public function __invoke(Psr\Http\Message\ServerRequestInterface \$request, Psr\Http\Message\ResponseInterface \$response)
     {
         return ['request' => \$request, 'response' => \$response];
     }

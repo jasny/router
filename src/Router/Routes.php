@@ -2,7 +2,7 @@
 
 namespace Jasny\Router;
 
-use Psr\Http\Message\ServerRequestInterface as ServerRequest;
+use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * Collection of routes
@@ -12,16 +12,16 @@ interface Routes
     /**
      * Check if a route for the request exists
      * 
-     * @param ServerRequest $request
+     * @param ServerRequestInterface $request
      * @return boolean
      */
-    public function hasRoute(ServerRequest $request);
+    public function hasRoute(ServerRequestInterface $request);
     
     /**
      * Get route for the request
      * 
-     * @param ServerRequest $request
+     * @param ServerRequestInterface $request
      * @return Route
      */
-    public function getRoute(ServerRequest $request);
+    public function getRoute(ServerRequestInterface $request);
 }
