@@ -2,7 +2,7 @@
 
 use Jasny\Router\Route;
 use Jasny\Router\Runner\Callback;
-use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 class CallbackTest extends PHPUnit_Framework_TestCase
@@ -19,7 +19,7 @@ class CallbackTest extends PHPUnit_Framework_TestCase
         $runner = new Callback($route);
         $this->assertEquals($route, $runner->getRoute(), "Route was not set correctly");
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
 
         if (!$positive) $this->expectException(\RuntimeException::class);
@@ -53,7 +53,7 @@ class CallbackTest extends PHPUnit_Framework_TestCase
     /**
      * Testable callback for creating Route
      *
-     * @param RequestInterface  $request
+     * @param ServerRequestInterface  $request
      * @param ResponseInterface $response
      * @return array
      */

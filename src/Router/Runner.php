@@ -2,7 +2,7 @@
 
 namespace Jasny\Router;
 
-use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Jasny\Router\Route;
 
@@ -39,21 +39,21 @@ abstract class Runner
     /**
      * Invoke the action specified in the route
      * 
-     * @param RequestInterface  $request
+     * @param ServerRequestInterface  $request
      * @param ResponseInterface $response
      * @return ResponseInterface
      */
-    abstract public function run(RequestInterface $request, ResponseInterface $response);
+    abstract public function run(ServerRequestInterface $request, ResponseInterface $response);
     
     /**
      * Invoke the action specified in the route and call the next method
      * 
-     * @param RequestInterface  $request
+     * @param ServerRequestInterface  $request
      * @param ResponseInterface $response
      * @param callback          $next      Callback for if runner is used as middleware
      * @return ResponseInterface
      */
-    public function __invoke(RequestInterface $request, ResponseInterface $response, $next = null)
+    public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next = null)
     {
         $response = $this->run($request, $response);
 

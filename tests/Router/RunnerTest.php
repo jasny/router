@@ -5,7 +5,7 @@ use Jasny\Router\Runner;
 use Jasny\Router\Runner\Controller;
 use Jasny\Router\Runner\Callback;
 use Jasny\Router\Runner\PhpScript;
-use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 class RunnerTest extends PHPUnit_Framework_TestCase
@@ -50,7 +50,7 @@ class RunnerTest extends PHPUnit_Framework_TestCase
     {
         $runner = $this->getMockBuilder('Jasny\Router\Runner')->disableOriginalConstructor()->getMockForAbstractClass();
         $queries = [
-            'request' => $this->createMock(RequestInterface::class),
+            'request' => $this->createMock(ServerRequestInterface::class),
             'response' => $this->createMock(ResponseInterface::class)
         ];
 

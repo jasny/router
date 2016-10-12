@@ -2,9 +2,10 @@
 
 namespace Jasny;
 
-use Jasny\Router\Routes;
-use Psr7\Http\Message\ServerRequest;
-use Psr7\Http\Message\Response;
+use Jasny\Router\Runner;
+use Jasny\Router\Routes\Glob;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * Route pretty URLs to correct controller
@@ -13,17 +14,22 @@ class Router
 {
     /**
      * Specific routes
-     * @var Routes
+     * @var array
      */
-    protected $routes;
-    
+    protected $routes = [];    
+
+    /**
+     * Middlewares actions
+     * @var array
+     **/
+    protected $middlewares = [];
     
     /**
      * Class constructor
      * 
-     * @param Routes $routes
+     * @param array $routes
      */
-    public function __construct(Routes $routes)
+    public function __construct(array $routes)
     {
         $this->routes = $routes;
     }
@@ -36,46 +42,109 @@ class Router
     public function getRoutes()
     {
         return $this->routes;
+    }    
+
+    /**
+     * Get middlewares
+     *
+     * @return array
+     */
+    public function getMiddlewares()
+    {
+        return $this->middlewares;
     }
-    
+
+    /**
+     * Add middleware call to router
+     *
+     * @param callback $middleware
+     * @return Router $this
+     */
+    public function add($middleware)
+    {
+        if (!is_callable($middleware)) {
+            throw new \InvalidArgumentException("Middleware should be a callable");
+        }
+
+        $this->middlewares[] = $middleware;
+
+        return $this;
+    }
     
     /**
      * Run the action for the request
      *
-     * @param ServerRequest $request
-     * @param Response      $response
-     * @return Response
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface      $response
+     * @return ResponseInterface
      */
-    final public function run(ServerRequest $request, Response $response)
+    final public function run(ServerRequestInterface $request, ResponseInterface $response)
     {
         return $this->__invoke($request, $response);
     }
 
     /**
-     * Run the action for the request (optionally as middleware)
+     * Run the action for the request (optionally as middleware), previously running middlewares, if any
      *
-     * @param ServerRequest $request
-     * @param Response      $response
-     * @param callback      $next
-     * @return Response
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface      $response
+     * @param callback               $next
+     * @return ResponseInterface
      */
-    public function __invoke(ServerRequest $request, Response $response, $next = null)
+    public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next = null)
     {
-        return $this->handle($request, $response, $next);
+        $handle = [$this, 'handle'];
+
+        #Call to $this->handle will be executed last in the chain of middlewares
+        $next = function(ServerRequestInterface $request, ResponseInterface $response) use ($next, $handle) {
+            return call_user_func($handle, $request, $response, $next);
+        };
+
+        #Build middlewares call chain, so that the last added was executed in first place
+        foreach ($this->middlewares as $middleware) {
+            $next = function(ServerRequestInterface $request, ResponseInterface $response) use ($next, $middleware) {
+                return $middleware($request, $response, $next);
+            };
+        }
+
+        return $next($request, $response);
     }
 
     /**
      * Run the action
      *
-     * @param ServerRequest $request
-     * @param Response      $response
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface      $response
      * @param callback      $next
-     * @return Response
+     * @return ResponseInterface
      */
-    protected function handle(ServerRequest $request, Response $response, $next = null)
+    protected function handle(ServerRequestInterface $request, ResponseInterface $response, $next = null)
     {
-        // TODO find route and run.
-        // TODO if not found -> 404
+        $glob = new Glob($this->routes);
+        $route = $glob->getRoute($request);
+        
+        if (!$route) return $this->notFound($response);
+
+        $runner = Runner::create($route);
+
+        return $runner($request, $response, $next);
+    }
+
+    /**
+     * Return 'Not Found' response
+     *
+     * @param ResponseInterface      $response
+     * @return ResponseInterface 
+     */
+    protected function notFound(ResponseInterface $response)
+    {
+        $message = 'Not Found';            
+
+        $body = $response->getBody();        
+        $body->rewind();
+        $body->write($message);
+
+        return $response->withStatus(404, $message)->withBody($body);
     }
 }
 
