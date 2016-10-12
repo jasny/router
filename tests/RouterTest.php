@@ -19,7 +19,7 @@ class RouterTest extends PHPUnit_Framework_TestCase
         ];
 
         $router = new Router($routes);
-        $this->assertEquals($routes, $router->getRoutes());
+        $this->assertEquals($routes, $router->getRoutes(), "Routes were not set correctly");
     }
 
     /**
@@ -28,8 +28,7 @@ class RouterTest extends PHPUnit_Framework_TestCase
     public function testRun()
     {
         $router = $this->createMock(Router::class, ['__invoke']);
-        $request = $this->createMock(ServerRequestInterface::class);
-        $response = $this->createMock(ResponseInterface::class);
+        list($request, $response) = $this->getRequests();
 
         $router->method('__invoke')->will($this->returnCallback(function($arg1, $arg2) {
             return ['request' => $arg1, 'response' => $arg2];
@@ -37,8 +36,8 @@ class RouterTest extends PHPUnit_Framework_TestCase
 
         $result = $router->run($request, $response);
 
-        $this->assertEquals($request, $result['request']);
-        $this->assertEquals($response, $result['response']);
+        $this->assertEquals($request, $result['request'], "Request was not processed correctly");
+        $this->assertEquals($response, $result['response'], "Response was not processed correctly");
     }
 
     /**
@@ -57,8 +56,8 @@ class RouterTest extends PHPUnit_Framework_TestCase
         $router = new Router($routes);        
         $result = $router($request, $response);
 
-        $this->assertEquals($request, $result['request']);
-        $this->assertEquals($response, $result['response']);
+        $this->assertEquals($request, $result['request'], "Request was not processed correctly");
+        $this->assertEquals($response, $result['response'], "Response was not processed correctly");
     }
 
     /**
@@ -79,8 +78,8 @@ class RouterTest extends PHPUnit_Framework_TestCase
             return ['request' => $arg1, 'response' => $arg2];
         });
 
-        $this->assertEquals($request, $result['request']);
-        $this->assertEquals($response, $result['response']);
+        $this->assertEquals($request, $result['request'], "Request was not processed correctly");
+        $this->assertEquals($response, $result['response'], "Response was not processed correctly");
     }
 
     /**
@@ -98,7 +97,72 @@ class RouterTest extends PHPUnit_Framework_TestCase
         $router = new Router($routes);        
         $result = $router($request, $response);
 
-        $this->assertEquals(get_class($response), get_class($result));
+        $this->assertEquals(get_class($response), get_class($result), "Returned result is not an instance of 'ServerRequestInterface'");
+    }
+
+    /**
+     * Test adding middleware action
+     *
+     * @dataProvider addProvider
+     * @param mixed $middleware1
+     * @param callable $middleware2 
+     * @param boolean $positive 
+     */
+    public function testAdd($middleware1, $middleware2, $positive)
+    {
+        $router = new Router([]);
+        $this->assertEquals(0, count($router->getMiddlewares()), "Middlewares array should be empty");
+
+        if (!$positive) $this->expectException(\InvalidArgumentException::class);
+
+        $result = $router->add($middleware1);
+        $this->assertEquals(1, count($router->getMiddlewares()), "There should be only one item in middlewares array");
+        $this->assertEquals($middleware1, reset($router->getMiddlewares()), "Wrong item in middlewares array");
+        $this->assertEquals($router, $result, "'Add' should return '\$this'");
+
+        if (!$middleware2) return;
+
+        $router->add($middleware2);
+        $this->assertEquals(2, count($router->getMiddlewares()), "There should be two items in middlewares array");
+        foreach ($router->getMiddlewares() as $action) {
+            $this->assertTrue($action == $middleware1 || $action == $middleware2, "Wrong item in middlewares array");
+        }
+    }
+
+    /**
+     * Provide data for testing 'add' method
+     */
+    public function addProvider()
+    {
+        return [
+            ['wrong_callback', null, false],
+            [[$this, 'getMiddlewareCalledFirst'], null, true],
+            [[$this, 'getMiddlewareCalledFirst'], [$this, 'getMiddlewareCalledLast'], true]
+        ];  
+    }
+
+    /**
+     * Test executing router with middlewares chain (test only execution order)
+     */
+    public function testRunMiddlewares()
+    {
+        $routes = [
+            '/foo' => Route::create(['fn' => function($request, $response) {
+                $response->testMiddlewareCalls[] = 'handle';
+                return $response;
+            }])
+        ];
+
+        list($request, $response) = $this->getRequests();
+        $router = new Router($routes);
+        $router->add([$this, 'getMiddlewareCalledLast'])->add([$this, 'getMiddlewareCalledFirst']);
+
+        $result = $router($request, $response, function($request, $response) {
+            $response->testMiddlewareCalls[] = 'outer';
+            return $response;
+        });
+
+        $this->assertEquals(['first','last','handle','outer'], $response->testMiddlewareCalls, "Actions were executed in wrong order");
     }
 
     /**
@@ -115,6 +179,34 @@ class RouterTest extends PHPUnit_Framework_TestCase
         $request->method('getMethod')->will($this->returnValue('GET'));
 
         return [$request, $response];
+    }
+
+    /**
+     * Get middleware action, that should ba called first in middleware chain
+     *
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface      $response
+     * @param callback               $next
+     * @return ResponseInterface
+     */
+    public function getMiddlewareCalledFirst(ServerRequestInterface $request, ResponseInterface $response, $next)
+    {
+        $response->testMiddlewareCalls[] = 'first';
+        return $next($request, $response);
+    }
+
+    /**
+     * Get middleware action, that should be called last in middleware chain
+     *
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface      $response
+     * @param callback               $next
+     * @return ResponseInterface
+     */
+    public function getMiddlewareCalledLast(ServerRequestInterface $request, ResponseInterface $response, $next)
+    {
+        $response->testMiddlewareCalls[] = 'last';
+        return $next($request, $response);   
     }
 
     /**

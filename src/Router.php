@@ -17,6 +17,12 @@ class Router
      * @var array
      */
     protected $routes = [];    
+
+    /**
+     * Middlewares actions
+     * @var array
+     **/
+    protected $middlewares = [];
     
     /**
      * Class constructor
@@ -37,6 +43,33 @@ class Router
     {
         return $this->routes;
     }    
+
+    /**
+     * Get middlewares
+     *
+     * @return array
+     */
+    public function getMiddlewares()
+    {
+        return $this->middlewares;
+    }
+
+    /**
+     * Add middleware call to router
+     *
+     * @param callback $middleware
+     * @return Router $this
+     */
+    public function add($middleware)
+    {
+        if (!is_callable($middleware)) {
+            throw new \InvalidArgumentException("Middleware should be a callable");
+        }
+
+        $this->middlewares[] = $middleware;
+
+        return $this;
+    }
     
     /**
      * Run the action for the request
@@ -51,16 +84,30 @@ class Router
     }
 
     /**
-     * Run the action for the request (optionally as middleware)
+     * Run the action for the request (optionally as middleware), previously running middlewares, if any
      *
      * @param ServerRequestInterface $request
      * @param ResponseInterface      $response
-     * @param callback      $next
+     * @param callback               $next
      * @return ResponseInterface
      */
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next = null)
     {
-        return $this->handle($request, $response, $next);
+        $handle = [$this, 'handle'];
+
+        #Call to $this->handle will be executed last in the chain of middlewares
+        $next = function(ServerRequestInterface $request, ResponseInterface $response) use ($next, $handle) {
+            return call_user_func($handle, $request, $response, $next);
+        };
+
+        #Build middlewares call chain, so that the last added was executed in first place
+        foreach ($this->middlewares as $middleware) {
+            $next = function(ServerRequestInterface $request, ResponseInterface $response) use ($next, $middleware) {
+                return $middleware($request, $response, $next);
+            };
+        }
+
+        return $next($request, $response);
     }
 
     /**
