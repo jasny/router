@@ -61,19 +61,6 @@ class Glob extends ArrayObject implements Routes
     }
     
     /**
-     * Class constructor
-     * 
-     * @param Route[]|array|\Traversable $input
-     * @param type $flags
-     * @param type $iterator_class
-     */
-    public function __construct($input = [], $flags = 0, $iterator_class = "ArrayIterator")
-    {
-        parent::__construct($input, $flags, $iterator_class);
-    }
-    
-    
-    /**
      * {@inheritdoc}
      */
     public function append($route)
