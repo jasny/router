@@ -3,6 +3,7 @@
 namespace Jasny\Router\Routes;
 
 use ArrayObject;
+use ArrayIterator;
 use Jasny\Router\UrlParsing;
 use Jasny\Router\Routes;
 use Jasny\Router\Route;
@@ -59,19 +60,6 @@ class Glob extends ArrayObject implements Routes
 
         return array_map([$this, 'createRoute'], $input);
     }
-    
-    /**
-     * Class constructor
-     * 
-     * @param Route[]|array|\Traversable $input
-     * @param type $flags
-     * @param type $iterator_class
-     */
-    public function __construct($input = [], $flags = 0, $iterator_class = "ArrayIterator")
-    {
-        parent::__construct($input, $flags, $iterator_class);
-    }
-    
     
     /**
      * {@inheritdoc}
