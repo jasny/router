@@ -1,9 +1,16 @@
 <?php
 
+namespace Jasny\Router\Routes;
+
 use Jasny\Router\Routes\Glob;
 use Psr\Http\Message\ServerRequestInterface;
 
-class GlobTest extends PHPUnit_Framework_TestCase
+use ArrayObject;
+use BadMethodCallException;
+use InvalidArgumentException;
+use AppendIterator;
+
+class GlobTest extends \PHPUnit_Framework_TestCase
 {
     /**
      * Test creating Glob object
@@ -25,18 +32,22 @@ class GlobTest extends PHPUnit_Framework_TestCase
         }
 
         $this->assertEquals(0, $count);        
-
+    }
+    
+    public function testConstructorWithArguments()
+    {
         #Test with params
         $values = [
             '/foo/bar' => ['controller' => 'value1'],
             '/foo/*' => ['fn' => 'value3'],
             '/foo/*/bar' => ['file' => 'value5'],
         ];
-        $glob = new Glob($values, ArrayObject::ARRAY_AS_PROPS, 'AppendIterator');
+        
+        $glob = new Glob($values, ArrayObject::ARRAY_AS_PROPS, AppendIterator::class);
 
         $this->assertEquals(count($values), $glob->count(), "Routes count is not match");
         $this->assertEquals(ArrayObject::ARRAY_AS_PROPS, $glob->getFlags(), "Flags are not correct");
-        $this->assertEquals('AppendIterator', $glob->getIteratorClass(), "Iterator class is not correct");
+        $this->assertEquals(AppendIterator::class, $glob->getIteratorClass(), "Iterator class is not correct");
 
         foreach ($values as $pattern => $options) {
             $this->assertTrue($glob->offsetExists($pattern), "Key '$pattern' is missing");
@@ -148,7 +159,8 @@ class GlobTest extends PHPUnit_Framework_TestCase
     {   
         $glob = new Glob();
 
-        $this->assertEquals($positive, $glob->fnmatch($pattern, $uri), "Pattern and uri should " . ($positive ? "" : "not") . " match");
+        $this->assertEquals($positive, $glob->fnmatch($pattern, $uri),
+            "Pattern and uri should " . ($positive ? "" : "not") . " match");
     }
 
     /**
