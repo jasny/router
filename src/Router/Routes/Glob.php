@@ -3,7 +3,6 @@
 namespace Jasny\Router\Routes;
 
 use ArrayObject;
-use ArrayIterator;
 use Jasny\Router\UrlParsing;
 use Jasny\Router\Routes;
 use Jasny\Router\Route;
