@@ -1,5 +1,6 @@
 <?php
 
+use Jasny\Router\Routes\Glob;
 use Jasny\Router\Middleware\NotFound;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -13,12 +14,15 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
      * @dataProvider constructProvider
      * @param string $notFound 
      * @param string $notAllowed
+     * @param boolean $positive 
      */
-    public function testConstruct($notFound, $notAllowed)
+    public function testConstruct($notFound, $notAllowed, $positive)
     {   
-        $this->expectException(\InvalidArgumentException::class);
+        if (!$positive) $this->expectException(\InvalidArgumentException::class);
 
-        $middleware = new NotFound([], $notFound, $notAllowed);
+        $middleware = new NotFound(new Glob([]), $notFound, $notAllowed);
+
+        if ($positive) $this->skipTest();
     }
 
     /**
@@ -27,10 +31,14 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
     public function constructProvider()
     {
         return [
-            [404, 406],
-            [200, 405],
-            [null, 405],
-            [true, true]
+            [null, 405, false],
+            [true, true, false],
+            [99, null, false],
+            [1000, null, false],
+            [404, 99, false],
+            [404, 1000, false],
+            [200, 405, true],
+            [404, 200, true]
         ];
     }
 
@@ -39,11 +47,11 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
      */
     public function testInvokeInvalidNext()
     {
-        $middleware = new NotFound([], 404, 405);
+        $middleware = new NotFound(new Glob([]), 404, 405);
         list($request, $response) = $this->getRequests('/foo', 'POST');
 
         $this->expectException(\InvalidArgumentException::class);
-        
+
         $result = $middleware($request, $response, 'not_callable');
     }
 
@@ -62,9 +70,9 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
         list($request, $response) = $this->getRequests('/foo', 'POST');
 
         if (is_numeric($notAllowed)) {
-            $this->expectSimpleDeny($response, 405, 'Method Not Allowed');
+            $this->expectSimpleDeny($response, $notAllowed);
         } elseif (!$notAllowed && is_numeric($notFound)) {
-            $this->expectSimpleDeny($response, 404, 'Not Found');
+            $this->expectSimpleDeny($response, $notFound);
         }
 
         $result = $middleware($request, $response, $next);
@@ -133,17 +141,16 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
      *
      * @param ResponseInterface $response
      * @param int $code 
-     * @param string $reasonPhrase 
      */
-    public function expectSimpleDeny(ResponseInterface $response, $code, $reasonPhrase)
+    public function expectSimpleDeny(ResponseInterface $response, $code)
     {
         $stream = $this->createMock(StreamInterface::class);
         $stream->expects($this->once())->method('rewind');
-        $stream->expects($this->once())->method('write')->with($this->equalTo($reasonPhrase));
+        $stream->expects($this->once())->method('write')->with($this->equalTo('Not Found'));
 
         $response->method('getBody')->will($this->returnValue($stream));
         $response->expects($this->once())->method('withBody')->with($this->equalTo($stream))->will($this->returnSelf());
-        $response->expects($this->once())->method('withStatus')->with($this->equalTo($code), $this->equalTo($reasonPhrase))->will($this->returnSelf());
+        $response->expects($this->once())->method('withStatus')->with($this->equalTo($code), $this->equalTo('Not Found'))->will($this->returnSelf());
     }
 
     /**
@@ -171,13 +178,13 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
      */
     public function getRoutes()
     {
-        return [
+        return new Glob([
             '/' => ['controller' => 'test'],
             '/foo/bar' => ['controller' => 'test'],
             '/foo +GET' => ['controller' => 'test'],
             '/foo +OPTIONS' => ['controller' => 'test'],
             '/bar/foo/zet -POST' => ['controller' => 'test']
-        ];
+        ]);
     }
 
     /**

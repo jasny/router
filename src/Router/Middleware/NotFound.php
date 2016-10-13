@@ -2,6 +2,7 @@
 
 namespace Jasny\Router\Middleware;
 
+use Jasny\Router\Routes;
 use Jasny\Router\Routes\Glob;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -13,9 +14,9 @@ class NotFound
 {    
     /**
      * Routes
-     * @var array
+     * @var Routes
      */
-    protected $routes = [];
+    protected $routes = null;
 
     /**
      * Action for 'not found' case
@@ -36,14 +37,14 @@ class NotFound
      * @param callback|int $notFound 
      * @param callback|int $methodNotAllowed 
      */
-    public function __construct(array $routes, $notFound = 404, $methodNotAllowed = null)
+    public function __construct(Routes $routes, $notFound = 404, $methodNotAllowed = null)
     {
-        if (!in_array($notFound, [404, '404'], true) && !is_callable($notFound)) {
-            throw new \InvalidArgumentException("'Not found' parameter should be '404' or a callback");
+        if (!(is_numeric($notFound) && $notFound >= 100 && $notFound <= 999) && !is_callable($notFound)) {
+            throw new \InvalidArgumentException("'Not found' parameter should be a code in range 100-999 or a callback");
         }
 
-        if ($methodNotAllowed && !in_array($methodNotAllowed, [405, '405'], true) && !is_callable($methodNotAllowed)) {
-            throw new \InvalidArgumentException("'Method not allowed' parameter should be '405' or a callback");   
+        if ($methodNotAllowed && !(is_numeric($methodNotAllowed) && $methodNotAllowed >= 100 && $methodNotAllowed <= 999) && !is_callable($methodNotAllowed)) {
+            throw new \InvalidArgumentException("'Method not allowed' parameter should be a code in range 100-999 or a callback");   
         }
 
         $this->routes = $routes;
@@ -65,25 +66,14 @@ class NotFound
             throw new \InvalidArgumentException("'next' should be a callback");            
         }
 
-        $glob = new Glob($this->routes);          
-
-        if ($this->methodNotAllowed) {
-            $notAllowed = !$glob->hasRoute($request) && $glob->hasRoute($request, false);
-
-            if ($notAllowed) {
-                return is_numeric($this->methodNotAllowed) ? 
-                    $this->simpleResponse($response, $this->methodNotAllowed, 'Method Not Allowed') :
-                    call_user_func($this->methodNotAllowed, $request, $response);
-            }
-        } 
-
-        if (!$glob->hasRoute($request)) {
-            return is_numeric($this->notFound) ? 
-                $this->simpleResponse($response, $this->notFound, 'Not Found') :
-                call_user_func($this->notFound, $request, $response);
+        if ($this->routes->hasRoute($request)) {
+            return $next ? $next($request, $response) : $response;    
         }
 
-        return $next ? $next($request, $response) : $response;
+        $status = $this->methodNotAllowed && $this->routes->hasRoute($request, false) ? 
+            $this->methodNotAllowed : $this->notFound;
+
+        return is_numeric($status) ? $this->simpleResponse($response, $status) : call_user_func($status, $request, $response);
     }
 
     /**
@@ -94,8 +84,10 @@ class NotFound
      * @param string $message 
      * @return 
      */
-    protected function simpleResponse(ResponseInterface $response, $code, $message)
+    protected function simpleResponse(ResponseInterface $response, $code)
     {
+        $message = 'Not Found';
+
         $body = $response->getBody();        
         $body->rewind();
         $body->write($message);
