@@ -247,6 +247,41 @@ class GlobTest extends PHPUnit_Framework_TestCase
     }
 
     /**
+     * Test checking if route exists regardless of request method
+     *
+     * @dataProvider getHasRouteNoMethodProvider
+     */
+    public function testHasRouteNoMethod($uri, $method)
+    {
+        $values = [
+            '/' => ['controller' => 'value0'],
+            '/foo/bar' => ['controller' => 'value1'],
+            '/foo +GET' => ['controller' => 'value2'],
+            '/bar/foo/zet -POST' => ['controller' => 'value3']
+        ];
+
+        $glob = new Glob($values);
+        $request = $this->getServerRequest($uri, $method);
+
+        $this->assertTrue($glob->hasRoute($request, false), "Route not exists");
+    }
+
+    /**
+     * Provide data for creating ServerRequestInterface objects
+     */
+    public function getHasRouteNoMethodProvider()
+    {
+        return [
+            ['/', 'GET'],
+            ['/foo/bar', 'GET'],
+            ['/foo', 'GET'],
+            ['/foo', 'POST'],
+            ['/bar/foo/zet', 'GET'],
+            ['/bar/foo/zet', 'POST']
+        ];
+    }
+
+    /**
      * Test binding simple string when getting route
      */
     public function testBindVarString()
