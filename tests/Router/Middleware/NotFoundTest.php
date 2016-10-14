@@ -1,6 +1,6 @@
 <?php
 
-use Jasny\Router\Routes\Glob;
+use Jasny\Router\Routes;
 use Jasny\Router\Middleware\NotFound;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -20,7 +20,7 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
     {   
         if (!$positive) $this->expectException(\InvalidArgumentException::class);
 
-        $middleware = new NotFound(new Glob([]), $notFound, $notAllowed);
+        $middleware = new NotFound($this->getRoutes(), $notFound, $notAllowed);
 
         if ($positive) $this->skipTest();
     }
@@ -34,9 +34,9 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
             [null, 405, false],
             [true, true, false],
             [99, null, false],
-            [1000, null, false],
+            [600, null, false],
             [404, 99, false],
-            [404, 1000, false],
+            [404, 600, false],
             [200, 405, true],
             [404, 200, true]
         ];
@@ -46,9 +46,9 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
      * Test invoke with invalid 'next' param
      */
     public function testInvokeInvalidNext()
-    {
-        $middleware = new NotFound(new Glob([]), 404, 405);
-        list($request, $response) = $this->getRequests('/foo', 'POST');
+    {   
+        $middleware = new NotFound($this->getRoutes(), 404, 405);
+        list($request, $response) = $this->getRequests();
 
         $this->expectException(\InvalidArgumentException::class);
 
@@ -56,57 +56,120 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * Test runner __invoke method
+     * Test that 'next' callback is invoked when route is found
      *
      * @dataProvider invokeProvider
      * @param callback|int $notFound 
      * @param callback|int $notAllowed 
      * @param callback $next
      */
-    public function testInvokeNoNext($notFound, $notAllowed, $next)
+    public function testInvokeFound($notFound, $notAllowed, $next)
     {
+        if (!$next) return $this->skipTest();
+
+        list($request, $response) = $this->getRequests();
         $routes = $this->getRoutes();
         $middleware = new NotFound($routes, $notFound, $notAllowed);
-        list($request, $response) = $this->getRequests('/foo', 'POST');
 
+        $this->expectRoute($routes, $request, 'found');
+        $this->notExpectSimpleError($response);
+
+        $result = $middleware($request, $response, $next);
+
+        $this->assertEquals(get_class($response), get_class($result), "Result must be an instance of 'ResponseInterface'");
+        $this->assertTrue($result->nextCalled, "'next' was not called");
+        $this->assertFalse(isset($result->notAllowedCalled), "'Not allowed' callback was called");
+        $this->assertFalse(isset($result->notFoundCalled), "'Not found' callback was called");
+    }
+
+    /**
+     * Test __invoke method in case of route is found with another method
+     *
+     * @dataProvider invokeProvider
+     * @param callback|int $notFound 
+     * @param callback|int $notAllowed 
+     * @param callback $next
+     */
+    public function testInvokeNotAllowed($notFound, $notAllowed, $next)
+    {
+        if (!$notAllowed) return $this->skipTest();
+
+        list($request, $response) = $this->getRequests();
+        $routes = $this->getRoutes();
+        $middleware = new NotFound($routes, $notFound, $notAllowed);
+
+        $this->expectRoute($routes, $request, 'notAllowed');
         if (is_numeric($notAllowed)) {
-            $this->expectSimpleDeny($response, $notAllowed);
-        } elseif (!$notAllowed && is_numeric($notFound)) {
-            $this->expectSimpleDeny($response, $notFound);
+            $this->expectSimpleError($response, $notAllowed);
         }
 
         $result = $middleware($request, $response, $next);
 
         $this->assertEquals(get_class($response), get_class($result), "Result must be an instance of 'ResponseInterface'");
-        $this->assertTrue(!isset($result->nextCalled), "'next' was called");
+        $this->assertFalse(isset($result->nextCalled), "'next' was called");
         
         if (is_callable($notAllowed)) {
             $this->assertTrue($result->notAllowedCalled, "'Not allowed' callback was not called");
-        } elseif (!$notAllowed && is_callable($notFound)) {
+        }
+    }
+
+    /**
+     * Test __invoke method in case of route not found at all
+     *
+     * @dataProvider invokeProvider
+     * @param callback|int $notFound 
+     * @param callback|int $notAllowed 
+     * @param callback $next
+     */
+    public function testInvokeNotFound($notFound, $notAllowed, $next)
+    {
+        list($request, $response) = $this->getRequests();
+        $routes = $this->getRoutes();
+        $middleware = new NotFound($routes, $notFound, $notAllowed);
+
+        $case = $notAllowed ? 'notFoundTwice' : 'notFoundOnce';
+        $this->expectRoute($routes, $request, $case);
+
+        if (is_numeric($notFound)) {
+            $this->expectSimpleError($response, $notFound);
+        }
+
+        $result = $middleware($request, $response, $next);
+
+        $this->assertEquals(get_class($response), get_class($result), "Result must be an instance of 'ResponseInterface'");
+        $this->assertFalse(isset($result->nextCalled), "'next' was called");
+        
+        if (is_callable($notAllowed)) {
+            $this->assertFalse(isset($result->notAllowedCalled), "'Not allowed' callback was called");
+        }
+        if (is_callable($notFound)) {
             $this->assertTrue($result->notFoundCalled, "'Not found' callback was not called");
         }
     }
 
     /**
-     * Text that 'next' callback is invoked when route is found
+     * Set expectations on finding route
      *
-     * @dataProvider invokeProvider
-     * @param callback|int $notFound 
-     * @param callback|int $notAllowed 
-     * @param callback $next
+     * @param Routes $routes
+     * @param ServerRequestInterface $request
+     * @param string $case 
      */
-    public function testInvokeNext($notFound, $notAllowed, $next)
+    public function expectRoute($routes, $request, $case)
     {
-        if (!$next) return $this->skipTest();
+        if ($case === 'found' || $case === 'notFoundOnce') {
+            $found = $case === 'found';
 
-        $routes = $this->getRoutes();
-        $middleware = new NotFound($routes, $notFound, $notAllowed);
-        list($request, $response) = $this->getRequests('/foo', 'GET');
-
-        $result = $middleware($request, $response, $next);
-
-        $this->assertEquals(get_class($response), get_class($result), "Result must be an instance of 'ResponseInterface'");
-        $this->assertTrue($result->nextCalled, "'next' waas not called");
+            $routes->expects($this->once())->method('hasRoute')
+                ->with($this->equalTo($request))->will($this->returnValue($found));            
+        } elseif ($case === 'notAllowed' || $case === 'notFoundTwice') {
+            $routes->expects($this->exactly(2))->method('hasRoute')
+                ->withConsecutive(
+                    [$this->equalTo($request)],
+                    [$this->equalTo($request), $this->equalTo(false)]
+                )->will($this->returnCallback(function($request, $searchMethod = true) use ($case) {
+                    return $case === 'notFoundTwice' ? false : !$searchMethod;
+                }));
+        }
     }
 
     /**
@@ -140,9 +203,9 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
      * Expect that response is set to simple deny answer
      *
      * @param ResponseInterface $response
-     * @param int $code 
+     * @param int $statusCode 
      */
-    public function expectSimpleDeny(ResponseInterface $response, $code)
+    public function expectSimpleError(ResponseInterface $response, $statusCode)
     {
         $stream = $this->createMock(StreamInterface::class);
         $stream->expects($this->once())->method('rewind');
@@ -150,23 +213,34 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
 
         $response->method('getBody')->will($this->returnValue($stream));
         $response->expects($this->once())->method('withBody')->with($this->equalTo($stream))->will($this->returnSelf());
-        $response->expects($this->once())->method('withStatus')->with($this->equalTo($code), $this->equalTo('Not Found'))->will($this->returnSelf());
+        $response->expects($this->once())->method('withStatus')->with($this->equalTo($statusCode), $this->equalTo('Not Found'))->will($this->returnSelf());
+    }
+
+    /**
+     * Expect that there would be no simple error response
+     *
+     * @param ResponseInterface $response
+     */
+    public function notExpectSimpleError(ResponseInterface $response)
+    {
+        $stream = $this->createMock(StreamInterface::class);
+        $stream->expects($this->never())->method('rewind');
+        $stream->expects($this->never())->method('write');
+
+        $response->expects($this->never())->method('getBody');
+        $response->expects($this->never())->method('withBody');
+        $response->expects($this->never())->method('withStatus');   
     }
 
     /**
      * Get requests for testing
      *
-     * @param string $uri 
-     * @param string $method 
      * @return array
      */
-    public function getRequests($uri, $method)
+    public function getRequests()
     {
         $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
-
-        $request->method('getUri')->will($this->returnValue($uri));
-        $request->method('getMethod')->will($this->returnValue($method));
 
         return [$request, $response];
     }
@@ -174,17 +248,11 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
     /**
      * Get routes array
      *
-     * @return array
+     * @return Routes
      */
     public function getRoutes()
     {
-        return new Glob([
-            '/' => ['controller' => 'test'],
-            '/foo/bar' => ['controller' => 'test'],
-            '/foo +GET' => ['controller' => 'test'],
-            '/foo +OPTIONS' => ['controller' => 'test'],
-            '/bar/foo/zet -POST' => ['controller' => 'test']
-        ]);
+        return $this->getMockBuilder(Routes::class)->disableOriginalConstructor()->getMock();        
     }
 
     /**

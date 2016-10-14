@@ -3,7 +3,6 @@
 namespace Jasny\Router\Middleware;
 
 use Jasny\Router\Routes;
-use Jasny\Router\Routes\Glob;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -26,30 +25,40 @@ class NotFound
 
     /**
      * Action for 'method not allowed' case
-     * @var string
+     * @var callback|int
      **/
     protected $methodNotAllowed = null;
 
     /**
      * Class constructor
      * 
-     * @param array $routes
+     * @param Routes $routes
      * @param callback|int $notFound 
      * @param callback|int $methodNotAllowed 
      */
     public function __construct(Routes $routes, $notFound = 404, $methodNotAllowed = null)
     {
-        if (!(is_numeric($notFound) && $notFound >= 100 && $notFound <= 999) && !is_callable($notFound)) {
-            throw new \InvalidArgumentException("'Not found' parameter should be a code in range 100-999 or a callback");
+        if (!(is_numeric($notFound) && $notFound >= 100 && $notFound <= 599) && !is_callable($notFound)) {
+            throw new \InvalidArgumentException("'Not found' parameter should be a code in range 100-599 or a callback");
         }
 
-        if ($methodNotAllowed && !(is_numeric($methodNotAllowed) && $methodNotAllowed >= 100 && $methodNotAllowed <= 999) && !is_callable($methodNotAllowed)) {
-            throw new \InvalidArgumentException("'Method not allowed' parameter should be a code in range 100-999 or a callback");   
+        if ($methodNotAllowed && !(is_numeric($methodNotAllowed) && $methodNotAllowed >= 100 && $methodNotAllowed <= 599) && !is_callable($methodNotAllowed)) {
+            throw new \InvalidArgumentException("'Method not allowed' parameter should be a code in range 100-599 or a callback");   
         }
 
         $this->routes = $routes;
         $this->notFound = $notFound;
         $this->methodNotAllowed = $methodNotAllowed;
+    }
+
+    /**
+     * Get routes
+     *
+     * @return Routes
+     */
+    public function getRoutes()
+    {
+        return $this->routes;
     }
 
     /**
@@ -66,11 +75,11 @@ class NotFound
             throw new \InvalidArgumentException("'next' should be a callback");            
         }
 
-        if ($this->routes->hasRoute($request)) {
+        if ($this->getRoutes()->hasRoute($request)) {
             return $next ? $next($request, $response) : $response;    
         }
 
-        $status = $this->methodNotAllowed && $this->routes->hasRoute($request, false) ? 
+        $status = $this->methodNotAllowed && $this->getRoutes()->hasRoute($request, false) ? 
             $this->methodNotAllowed : $this->notFound;
 
         return is_numeric($status) ? $this->simpleResponse($response, $status) : call_user_func($status, $request, $response);
@@ -81,8 +90,7 @@ class NotFound
      *
      * @param ResponseInterface $response
      * @param int $code 
-     * @param string $message 
-     * @return 
+     * @return ResponseInterface
      */
     protected function simpleResponse(ResponseInterface $response, $code)
     {
