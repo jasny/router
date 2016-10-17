@@ -2,6 +2,7 @@
 
 use Jasny\Router;
 use Jasny\Router\Route;
+use Jasny\Router\Runner\RunnerFactory;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
@@ -159,7 +160,7 @@ class RouterTest extends PHPUnit_Framework_TestCase
 
         list($request, $response) = $this->getRequests();
         $this->expectRequestRoute($request, $routes['/foo']);
-        
+
         $router = new Router($routes);
         $router->add([$this, 'getMiddlewareCalledLast'])->add([$this, 'getMiddlewareCalledFirst']);
 
@@ -169,6 +170,28 @@ class RouterTest extends PHPUnit_Framework_TestCase
         });
 
         $this->assertEquals(['first','last','handle','outer'], $response->testMiddlewareCalls, "Actions were executed in wrong order");
+    }
+
+    /**
+     * Test getting and setting runner factory
+     */
+    public function testRunnerFactory()
+    {
+        $router = new Router([]);
+        $factory = $router->getFactory();
+
+        $this->assertEquals(RunnerFactory::class, get_class($factory), "By default 'getFactory' should return 'RunnerFactory' instance, not " . get_class($factory));
+
+        $self = $router->setFactory(function() {
+            return 'test';
+        });
+        $factory = $router->getFactory();
+
+        $this->assertEquals($router, $self, "'setFactory' must return an instance of router");
+        $this->assertEquals('test', $factory(), "Factory was not set or got correctly");
+
+        $this->expectException(\InvalidArgumentException::class);
+        $router->setFactory('test');
     }
 
     /**

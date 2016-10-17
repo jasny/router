@@ -38,27 +38,5 @@ abstract class Runner
 
         return $response;
     }
-
-    /**
-     * Factory method
-     * 
-     * @param Route $route
-     * @return Runner
-     * @throws \RuntimeException if the route is misconfigured
-     */
-    public static function create(Route $route)
-    {
-        if (isset($route->controller)) {
-            $class = Runner\Controller::class;
-        } elseif (isset($route->fn)) {
-            $class = Runner\Callback::class;
-        } elseif (isset($route->file)) {
-            $class = Runner\PhpScript::class;
-        } else {
-            throw new \RuntimeException("Route has neither 'controller', 'fn' or 'file' defined");
-        }
-
-        return new $class();
-    }
 }
 
