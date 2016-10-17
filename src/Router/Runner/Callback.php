@@ -22,7 +22,8 @@ class Callback extends Runner
      */
     public function run(ServerRequestInterface $request, ResponseInterface $response)
     {
-        $callback = !empty($this->route->fn) ? $this->route->fn : null;
+        $route = $request->getAttribute('route');
+        $callback = !empty($route->fn) ? $route->fn : null;
 
         if (!is_callable($callback)) {
             throw new \RuntimeException("'fn' property of route shoud be a callable");

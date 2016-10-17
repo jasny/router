@@ -24,10 +24,7 @@ class RunnerTest extends PHPUnit_Framework_TestCase
 
         $runner = Runner::create($route);
 
-        if (!$positive) return;
-
         $this->assertInstanceOf($class, $runner, "Runner object has invalid class");
-        $this->assertEquals($route, $runner->getRoute(), "Route was not set correctly");
     }
 
     /**

@@ -125,6 +125,7 @@ class Router
         
         if (!$route) return $this->notFound($response);
 
+        $request->withAttribute('route', $route);
         $runner = Runner::create($route);
 
         return $runner($request, $response, $next);

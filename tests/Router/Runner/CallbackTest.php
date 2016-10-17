@@ -15,12 +15,12 @@ class CallbackTest extends PHPUnit_Framework_TestCase
      * @param boolean $positive
      */
     public function testCallback($route, $positive)
-    {   
+    {
         $runner = new Callback($route);
-        $this->assertEquals($route, $runner->getRoute(), "Route was not set correctly");
 
         $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
+        $request->expects($this->once())->method('getAttribute')->with($this->equalTo('route'))->will($this->returnValue($route));
 
         if (!$positive) $this->expectException(\RuntimeException::class);
         $result = $runner->run($request, $response);

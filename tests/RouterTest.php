@@ -53,6 +53,8 @@ class RouterTest extends PHPUnit_Framework_TestCase
         ];
 
         list($request, $response) = $this->getRequests();
+        $this->expectRequestRoute($request, $routes['/foo']);
+
         $router = new Router($routes);        
         $result = $router($request, $response);
 
@@ -73,6 +75,8 @@ class RouterTest extends PHPUnit_Framework_TestCase
         ];
 
         list($request, $response) = $this->getRequests();
+        $this->expectRequestRoute($request, $routes['/foo']);
+
         $router = new Router($routes);        
         $result = $router($request, $response, function($arg1, $arg2) {
             return ['request' => $arg1, 'response' => $arg2];
@@ -154,6 +158,8 @@ class RouterTest extends PHPUnit_Framework_TestCase
         ];
 
         list($request, $response) = $this->getRequests();
+        $this->expectRequestRoute($request, $routes['/foo']);
+        
         $router = new Router($routes);
         $router->add([$this, 'getMiddlewareCalledLast'])->add([$this, 'getMiddlewareCalledFirst']);
 
@@ -223,5 +229,16 @@ class RouterTest extends PHPUnit_Framework_TestCase
         $response->method('getBody')->will($this->returnValue($stream));
         $response->expects($this->once())->method('withBody')->with($this->equalTo($stream))->will($this->returnSelf());
         $response->expects($this->once())->method('withStatus')->with($this->equalTo(404), $this->equalTo('Not Found'))->will($this->returnSelf());
+    }
+
+    /**
+     * Expect that request will return given route
+     *
+     * @param ServerRequestInterface $request
+     * @param Route $route
+     */
+    public function expectRequestRoute(ServerRequestInterface $request, $route)
+    {
+        $request->expects($this->once())->method('getAttribute')->with($this->equalTo('route'))->will($this->returnValue($route));
     }
 }
