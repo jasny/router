@@ -107,7 +107,7 @@ class GlobTest extends \PHPUnit_Framework_TestCase
      */
     public function testOffsetSet($pattern, $options, $exception)
     {
-        if ($exception) $this->setExpectedException($exception);
+        if ($exception) $this->expectException($exception);
 
         $glob = new Glob();
         $glob->offsetSet($pattern, $options);
@@ -133,6 +133,7 @@ class GlobTest extends \PHPUnit_Framework_TestCase
             ['/foo/*', ['file' => 'bar'], ''],
             ['', ['controller' => 'bar'], BadMethodCallException::class],
             ['foo', 'bar', InvalidArgumentException::class],
+            ['', '', BadMethodCallException::class]
         ];
     }
 
@@ -325,7 +326,7 @@ class GlobTest extends \PHPUnit_Framework_TestCase
      */
     public function testBindVarMultipleUrlParts($uri, $options, $positive, $exception)
     {
-        if ($exception) $this->setExpectedException(InvalidArgumentException::class);
+        if ($exception) $this->expectException(InvalidArgumentException::class);
 
         $values = [$uri => $options];
         $glob = new Glob($values);
