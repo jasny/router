@@ -48,7 +48,7 @@ class RunnerTest extends PHPUnit_Framework_TestCase
      */
     public function testInvoke()
     {
-        $runner = $this->getMockBuilder('Jasny\Router\Runner')->disableOriginalConstructor()->getMockForAbstractClass();
+        $runner = $this->getMockBuilder(Runner::class)->disableOriginalConstructor()->getMockForAbstractClass();
         $queries = [
             'request' => $this->createMock(ServerRequestInterface::class),
             'response' => $this->createMock(ResponseInterface::class)
