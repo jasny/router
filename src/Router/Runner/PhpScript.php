@@ -10,17 +10,7 @@ use Psr\Http\Message\ResponseInterface;
  * Route to a PHP script
  */
 class PhpScript extends Runner
-{        
-    /**
-     * Return route file path
-     * 
-     * @return string
-     */
-    public function __toString()
-    {
-        return (string)$this->route->file;
-    }    
-    
+{            
     /**
      * Route to a file
      * 
@@ -30,7 +20,8 @@ class PhpScript extends Runner
      */
     public function run(ServerRequestInterface $request, ResponseInterface $response)
     {
-        $file = !empty($this->route->file) ? ltrim($this->route->file, '/') : '';
+        $route = $request->getAttribute('route');        
+        $file = !empty($route->file) ? ltrim($route->file, '/') : '';
 
         if (!file_exists($file)) {
             throw new \RuntimeException("Failed to route using '$file': File '$file' doesn't exist.");

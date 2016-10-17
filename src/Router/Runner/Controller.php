@@ -22,7 +22,8 @@ class Controller extends Runner
      */
     public function run(ServerRequestInterface $request, ResponseInterface $response)
     {
-        $class = !empty($this->route->controller) ? $this->route->controller : null;
+        $route = $request->getAttribute('route');        
+        $class = !empty($route->controller) ? $route->controller : null;
 
         if (!class_exists($class)) {
             throw new \RuntimeException("Can not route to controller '$class': class not exists");
@@ -32,7 +33,7 @@ class Controller extends Runner
             throw new \RuntimeException("Can not route to controller '$class': class does not have '__invoke' method");   
         }
 
-        $controller = new $class($this->route);
+        $controller = new $class($route);
 
         return $controller($request, $response);
     }

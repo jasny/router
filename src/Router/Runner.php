@@ -10,32 +10,7 @@ use Jasny\Router\Route;
  * A runner can be invoked in order to run the action specified in a route
  */
 abstract class Runner
-{
-    /**
-     * @var \stdClass
-     */
-    protected $route;
-    
-    /**
-     * Class constructor
-     * 
-     * @param \stdClass $route
-     */
-    public function __construct(\stdClass $route)
-    {
-        $this->route = $route;
-    }
-
-    /**
-     * Get runner route
-     *
-     * @return Route
-     */
-    public function getRoute()
-    {
-        return $this->route;
-    }
-    
+{    
     /**
      * Invoke the action specified in the route
      * 
@@ -83,7 +58,7 @@ abstract class Runner
             throw new \RuntimeException("Route has neither 'controller', 'fn' or 'file' defined");
         }
 
-        return new $class($route);
+        return new $class();
     }
 }
 
