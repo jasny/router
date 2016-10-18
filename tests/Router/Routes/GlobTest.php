@@ -132,6 +132,7 @@ class GlobTest extends \PHPUnit_Framework_TestCase
             ['/foo/*', ['fn' => 'bar'], ''],
             ['/foo/*', ['file' => 'bar'], ''],
             ['', ['controller' => 'bar'], BadMethodCallException::class],
+            ['foo', 'bar', InvalidArgumentException::class],
             ['', '', BadMethodCallException::class]
         ];
     }
