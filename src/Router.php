@@ -2,7 +2,7 @@
 
 namespace Jasny;
 
-use Jasny\Router\Runner;
+use Jasny\Router\Runner\RunnerFactory;
 use Jasny\Router\Routes\Glob;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -23,6 +23,12 @@ class Router
      * @var array
      **/
     protected $middlewares = [];
+
+    /**
+     * Factory of Runner objects
+     * @var RunnerFactory
+     **/
+    protected $factory = null;
     
     /**
      * Class constructor
@@ -52,6 +58,37 @@ class Router
     public function getMiddlewares()
     {
         return $this->middlewares;
+    }
+
+    /**
+     * Get factory of Runner objects
+     *
+     * @return RunnerFactory
+     */
+    public function getFactory()
+    {
+        if (!isset($this->factory)) {
+            $this->factory = new RunnerFactory();
+        }
+        
+        return $this->factory;
+    }
+
+    /**
+     * Set the factory of Runner objects
+     *
+     * @param callable $factory
+     * @return Router $this
+     */
+    public function setFactory($factory)
+    {
+        if (!is_callable($factory)) {
+            throw new \InvalidArgumentException("Factory must be a callable");            
+        }
+
+        $this->factory = $factory;
+
+        return $this;
     }
 
     /**
@@ -125,7 +162,9 @@ class Router
         
         if (!$route) return $this->notFound($response);
 
-        $runner = Runner::create($route);
+        $request->withAttribute('route', $route);        
+        $factory = $this->getFactory();
+        $runner = $factory($route);
 
         return $runner($request, $response, $next);
     }
