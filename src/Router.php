@@ -67,7 +67,11 @@ class Router
      */
     public function getFactory()
     {
-        return $this->factory ?: $this->factory = new RunnerFactory();
+        if (!isset($this->factory)) {
+            $this->factory = new RunnerFactory();
+        }
+        
+        return $this->factory;
     }
 
     /**
