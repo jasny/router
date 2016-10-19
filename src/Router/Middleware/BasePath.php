@@ -48,9 +48,9 @@ class BasePath
      * @param callback               $next
      * @return ResponseInterface
      */
-    public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next = null)
+    public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next)
     {
-        if ($next && !is_callable($next)) {
+        if (!is_callable($next)) {
             throw new \InvalidArgumentException("'next' should be a callback");            
         }
 
@@ -58,11 +58,10 @@ class BasePath
         $path = $this->normalizePath($uri->getPath());
 
         if (!$this->hasBasePath($path)) return $this->setError($response);
-        if (!$next) return $response;
 
         $noBase = $this->getBaselessPath($path);
-        $uri = $uri->withPath($noBase);        
-        $request = $request->withUri($uri)->withAttribute('original_uri', $path);
+        $noBaseUri = $uri->withPath($noBase);        
+        $request = $request->withUri($noBaseUri)->withAttribute('original_uri', $uri);
 
         return call_user_func($next, $request, $response);
     }
@@ -75,9 +74,7 @@ class BasePath
      */
     protected function getBaselessPath($path)
     {
-        $path = preg_replace('|^' . preg_quote($this->getBasePath()) . '|i', '', $path);
-
-        return $path ?: '/';
+        return substr($path, strlen($this->getBasePath())) ?: '/';
     }
 
     /**
@@ -88,7 +85,7 @@ class BasePath
      */
     protected function normalizePath($path)
     {
-        return '/' . trim($path, '/');
+        return '/' . ltrim($path, '/');
     }
 
     /**
@@ -99,7 +96,7 @@ class BasePath
      */
     protected function hasBasePath($path)
     {
-        return preg_match('#^' . preg_quote($this->getBasePath()) . '(\/|$)#i', $path);
+        return strpos($path . '/', $this->getBasePath() . '/') === 0;
     }
 
     /**

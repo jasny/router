@@ -44,12 +44,12 @@ class BasePathTest extends PHPUnit_Framework_TestCase
      * @dataProvider validConstructProvider
      * @param string $basePath
      */
-    public function testValidConstruct($basePath)
+    public function testValidConstruct($basePath, $validBasePath)
     {
         $pathHandler = new BasePath($basePath);
 
         $this->assertNotEmpty($pathHandler->getBasePath(), "Empty base path");
-        $this->assertEquals($this->normalizePath($basePath), $pathHandler->getBasePath(), "Base path was not set correctly");
+        $this->assertEquals($validBasePath, $pathHandler->getBasePath(), "Base path was not set correctly");
     }
 
     /**
@@ -60,13 +60,13 @@ class BasePathTest extends PHPUnit_Framework_TestCase
     public function validConstructProvider()
     {
         return [
-            ['/foo'],
-            ['/foo/'],
-            ['foo/'],
-            ['/foo/bar'],
-            ['foo/bar'],
-            ['/foo/bar/'],
-            ['/foo/bar-zet/']
+            ['/foo', '/foo'],
+            ['/foo/', '/foo/'],
+            ['foo/', '/foo/'],
+            ['/foo/bar', '/foo/bar'],
+            ['foo/bar', '/foo/bar'],
+            ['/foo/bar/', '/foo/bar/'],
+            ['/foo/bar-zet/', '/foo/bar-zet/']
         ];
     }
 
@@ -133,13 +133,14 @@ class BasePathTest extends PHPUnit_Framework_TestCase
      * @dataProvider foundProvider
      * @param string $basePath
      * @param string $path 
+     * @param string $noBasePath
      */
-    public function testFound($basePath, $path)
+    public function testFound($basePath, $path, $noBasePath)
     {
         $middleware = new BasePath($basePath);
         list($request, $response) = $this->getRequests();
 
-        $this->expectRequestSetBasePath($request, $basePath, $path);
+        $this->expectRequestSetBasePath($request, $basePath, $path, $noBasePath);
 
         $result = $middleware($request, $response, function($request, $response) {
             $response->nextCalled = true;
@@ -151,26 +152,6 @@ class BasePathTest extends PHPUnit_Framework_TestCase
         $this->assertTrue($response->nextCalled, "'next' was not called");
     }
 
-
-    /**
-     * Test correct case, when path contains base path, with no 'next' callback
-     *
-     * @dataProvider foundProvider
-     * @param string $basePath
-     * @param string $path 
-     */
-    public function testFoundNoNext($basePath, $path)
-    {
-        $middleware = new BasePath($basePath);
-        list($request, $response) = $this->getRequests();
-
-        $this->expectRequestGetPath($request, $path);
-
-        $result = $middleware($request, $response);
-
-        $this->assertEquals($response, $result, "Middleware should return response object");
-    }
-
     /**
      * Provide data for testing BasePath creation
      *
@@ -179,42 +160,15 @@ class BasePathTest extends PHPUnit_Framework_TestCase
     public function foundProvider()
     {
         return [
-            ['/foo', '/foo'],
-            ['foo', '/foo'],
-            ['/foo', '/foo/bar'],
-            ['/foo/bar', '/foo/bar'],
-            ['foo/bar', '/foo/bar'],
-            ['/foo/bar', '/foo/bar/zet'],
-            ['/f', '/f/foo'],
-            ['f', '/f/foo'],
+            ['/foo', '/foo', '/'],
+            ['foo', '/foo', '/'],
+            ['/foo', '/foo/bar', '/bar'],
+            ['/foo/bar', '/foo/bar', '/'],
+            ['foo/bar', '/foo/bar', '/'],
+            ['/foo/bar', '/foo/bar/zet', '/zet'],
+            ['/f', '/f/foo', '/foo'],
+            ['f', '/f/foo', '/foo'],
         ];
-    }
-
-    /**
-     * Normalize path
-     *
-     * @param string $path
-     * @return string
-     */
-    public function normalizePath($path)
-    {
-        return '/' . trim($path, '/');
-    }
-
-    /**
-     * Remove base path from given path
-     *
-     * @param string $path
-     * @return string
-     */
-    protected function getBaselessPath($basePath, $path)
-    {
-        $basePath = $this->normalizePath($basePath);
-        $path = $this->normalizePath($path);        
-
-        $path = preg_replace('|^' . preg_quote($basePath) . '|i', '', $path);
-
-        return $path ?: '/';
     }
 
     /**
@@ -250,18 +204,17 @@ class BasePathTest extends PHPUnit_Framework_TestCase
      * @param ServerRequestInterface $request
      * @param string $basePath
      * @param string $path 
+     * @param string $noBasePath
      */
-    public function expectRequestSetBasePath(ServerRequestInterface $request, $basePath, $path)
+    public function expectRequestSetBasePath(ServerRequestInterface $request, $basePath, $path, $noBasePath)
     {
-        $noBase = $this->getBaselessPath($basePath, $path);
-
         $uri = $this->createMock(UriInterface::class);
         $uri->expects($this->once())->method('getPath')->will($this->returnValue($path));
-        $uri->expects($this->once())->method('withPath')->with($this->equalTo($noBase))->will($this->returnSelf());
+        $uri->expects($this->once())->method('withPath')->with($this->equalTo($noBasePath))->will($this->returnSelf());
 
         $request->expects($this->once())->method('getUri')->will($this->returnValue($uri));
         $request->expects($this->once())->method('withUri')->with($this->equalTo($uri))->will($this->returnSelf());
-        $request->expects($this->once())->method('withAttribute')->with($this->equalTo('original_uri'), $this->equalTo($path))->will($this->returnSelf());
+        $request->expects($this->once())->method('withAttribute')->with($this->equalTo('original_uri'), $this->equalTo($uri))->will($this->returnSelf());
     }
 
     /**
