@@ -133,7 +133,11 @@ class Router
      */
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next = null)
     {
-        $stack = array_merge([$this, 'run'], $this->middlewares);
+        if (empty($this->middlewares)) {
+            return $this->run($request, $response, $next);
+        }
+        
+        $stack = array_merge([[$this, 'run']], $this->middlewares);
 
         // Turn the stack into a call chain
         foreach ($stack as $handle) {
@@ -156,11 +160,12 @@ class Router
     public function run(ServerRequestInterface $request, ResponseInterface $response, $next = null)
     {
         $route = $this->routes->getRoute($request);
-        $requestWithRoute = $request->withAttribute('route', $route);
         
         if (!$route) {
-            return $this->notFound($requestWithRoute, $response);
+            return $this->notFound($request, $response);
         }
+        
+        $requestWithRoute = $request->withAttribute('route', $route);
         
         $factory = $this->getFactory();
         $runner = $factory($route);

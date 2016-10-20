@@ -2,89 +2,136 @@
 
 use Jasny\Router;
 use Jasny\Router\Route;
+use Jasny\Router\Routes;
 use Jasny\Router\Runner\RunnerFactory;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
+use PHPUnit_Framework_MockObject_Matcher_Invocation as Invocation;
 
 class RouterTest extends PHPUnit_Framework_TestCase
 {
     /**
+     * Create mock for next callback
+     * 
+     * @param Invocation  $matcher
+     * @param array       $with     With arguments
+     * @param mixed       $return
+     * @return \PHPUnit_Framework_MockObject_MockObject
+     */
+    protected function createCallbackMock(Invocation $matcher, $with = [], $return = null)
+    {
+        $callback = $this->getMockBuilder(\stdClass::class)->setMethods(['__invoke'])->getMock();
+        $callback->expects($matcher)->method('__invoke')
+            ->with(...$with)
+            ->willReturn($return);
+        
+        return $callback;
+    }
+    
+    
+    /**
      * Test creating Router
      */
-    public function testConstruct()
+    public function testGetRoutes()
     {   
-        $routes = [
-            '/foo' => ['fn' => 'test_function'],
-            '/foo/bar' => ['controller' => 'TestController']
-        ];
+        $routes = $this->createMock(Routes::class);
 
         $router = new Router($routes);
-        $this->assertEquals($routes, $router->getRoutes(), "Routes were not set correctly");
+        $this->assertSame($routes, $router->getRoutes(), "Routes were not set correctly");
     }
 
+    
+    /**
+     * Test getting runner factory
+     */
+    public function testGetFactory()
+    {
+        $router = new Router($this->createMock(Routes::class));
+        $factory = $router->getFactory();
+
+        $this->assertInstanceOf(RunnerFactory::class, $factory);
+    }
+    
+    /**
+     * Test setting runner factory
+     */
+    public function testSetFactory()
+    {
+        $factoryMock = $this->createCallbackMock($this->never());
+        
+        $router = new Router($this->createMock(Routes::class));
+        
+        $ret = $router->setFactory($factoryMock);
+        $this->assertSame($router, $ret);
+        
+        $this->assertSame($factoryMock, $router->getFactory());
+    }
+
+    /**
+     * @expectedException \InvalidArgumentException
+     */
+    public function testSetInvalidFactory()
+    {
+        $router = new Router($this->createMock(Routes::class));
+        $router->setFactory('foo bar zoo');
+    }
+
+    
     /**
      * Test that on router 'handle', method '__invoke' is called
      */
     public function testHandle()
     {
-        $router = $this->createMock(Router::class, ['__invoke']);
-        list($request, $response) = $this->getRequests();
-
-        $router->method('__invoke')->will($this->returnCallback(function($arg1, $arg2) {
-            return ['request' => $arg1, 'response' => $arg2];
-        }));
+        $request = $this->createMock(ServerRequestInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
+        $finalResponse = $this->createMock(ResponseInterface::class);
+        
+        $router = $this->getMockBuilder(Router::class)->disableOriginalConstructor()
+            ->setMethods(['__invoke'])->getMock();
+        $router->expects($this->once())->method('__invoke')->with($request, $response)->willReturn($finalResponse);
 
         $result = $router->handle($request, $response);
 
-        $this->assertEquals($request, $result['request'], "Request was not processed correctly");
-        $this->assertEquals($response, $result['response'], "Response was not processed correctly");
+        $this->assertSame($finalResponse, $result);
+    }
+
+    public function nextProvider()
+    {
+        return [
+            [null],
+            [$this->createCallbackMock($this->any())]
+        ];
     }
 
     /**
      * Test '__invoke' method
+     * 
+     * @dataProvider nextProvider
      */
-    public function testInvoke()
+    public function testInvoke($next)
     {
-        $routes = [
-            '/foo/bar' => Route::create(['controller' => 'TestController']),
-            '/foo' => Route::create(['fn' => function($arg1, $arg2) {
-                return ['request' => $arg1, 'response' => $arg2];
-            }])
-        ];
+        $route = $this->createMock(Route::class);
+        
+        $request = $this->createMock(ServerRequestInterface::class);
+        $requestWithRoute = $this->createMock(ServerRequestInterface::class);
+        $request->expects($this->once())->method('withAttribute')->with('route')->willReturn($requestWithRoute);
+        
+        $response = $this->createMock(ResponseInterface::class);
+        $finalResponse = $this->createMock(ResponseInterface::class);
+        
+        $runner = $this->createCallbackMock($this->once(), [$requestWithRoute, $response, $next], $finalResponse);
+        $factory = $this->createCallbackMock($this->once(), [$route], $runner);
 
-        list($request, $response) = $this->getRequests();
-        $this->expectRequestRoute($request, $routes['/foo']);
+        $routes = $this->createMock(Routes::class);
+        $routes->expects($this->once())->method('getRoute')->with($request)->willReturn($route);
 
-        $router = new Router($routes);        
-        $result = $router($request, $response);
-
-        $this->assertEquals($request, $result['request'], "Request was not processed correctly");
-        $this->assertEquals($response, $result['response'], "Response was not processed correctly");
-    }
-
-    /**
-     * Test '__invoke' method with 'next' callback 
-     */
-    public function testInvokeNext()
-    {
-        $routes = [
-            '/foo/bar' => Route::create(['controller' => 'TestController']),
-            '/foo' => Route::create(['fn' => function($request, $response) {
-                return $response;
-            }])
-        ];
-
-        list($request, $response) = $this->getRequests();
-        $this->expectRequestRoute($request, $routes['/foo']);
-
-        $router = new Router($routes);        
-        $result = $router($request, $response, function($arg1, $arg2) {
-            return ['request' => $arg1, 'response' => $arg2];
-        });
-
-        $this->assertEquals($request, $result['request'], "Request was not processed correctly");
-        $this->assertEquals($response, $result['response'], "Response was not processed correctly");
+        $router = new Router($routes);
+        $router->setFactory($factory);
+        
+        $result = $router($request, $response, $next);
+        
+        $this->assertSame($finalResponse, $result);
     }
 
     /**
@@ -92,58 +139,55 @@ class RouterTest extends PHPUnit_Framework_TestCase
      */
     public function testNotFound()
     {
-        $routes = [
-            '/foo/bar' => Route::create(['controller' => 'TestController'])
-        ];
+        $request = $this->createMock(ServerRequestInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
+        $finalResponse = $this->createMock(ResponseInterface::class);
+        $body = $this->createMock(StreamInterface::class);
 
-        list($request, $response) = $this->getRequests();
-        $this->expectNotFound($response);        
+        $response->expects($this->once())->method('withStatus')->with(404)->willReturn($finalResponse);
+        $finalResponse->expects($this->once())->method('getBody')->willReturn($body);
+        $body->expects($this->once())->method('write')->with('Not Found');
+            
+        $factory = $this->createCallbackMock($this->never());
 
-        $router = new Router($routes);        
+        $routes = $this->createMock(Routes::class);
+        $routes->expects($this->once())->method('getRoute')->with($request)->willReturn(null);
+
+        $router = new Router($routes);
+        $router->setFactory($factory);
+        
         $result = $router($request, $response);
-
-        $this->assertEquals(get_class($response), get_class($result), "Returned result is not an instance of 'ServerRequestInterface'");
+        
+        $this->assertSame($finalResponse, $result);
     }
 
     /**
      * Test adding middleware action
-     *
-     * @dataProvider addProvider
-     * @param mixed $middleware1
-     * @param callable $middleware2 
-     * @param boolean $positive 
      */
-    public function testAdd($middleware1, $middleware2, $positive)
+    public function testAdd()
     {
-        $router = new Router([]);
-        $this->assertEquals(0, count($router->getMiddlewares()), "Middlewares array should be empty");
+        $middlewareOne = $this->createCallbackMock($this->never());
+        $middlewareTwo = $this->createCallbackMock($this->never());
 
-        if (!$positive) $this->expectException(\InvalidArgumentException::class);
+        $router = new Router($this->createMock(Routes::class));
+        
+        $this->assertEquals([], $router->getMiddlewares(), "Middlewares array should be empty");
 
-        $result = $router->add($middleware1);
-        $this->assertEquals(1, count($router->getMiddlewares()), "There should be only one item in middlewares array");
-        $this->assertEquals($middleware1, reset($router->getMiddlewares()), "Wrong item in middlewares array");
-        $this->assertEquals($router, $result, "'Add' should return '\$this'");
-
-        if (!$middleware2) return;
-
-        $router->add($middleware2);
-        $this->assertEquals(2, count($router->getMiddlewares()), "There should be two items in middlewares array");
-        foreach ($router->getMiddlewares() as $action) {
-            $this->assertTrue($action == $middleware1 || $action == $middleware2, "Wrong item in middlewares array");
-        }
+        $ret = $router->add($middlewareOne);
+        $this->assertSame($router, $ret);
+        
+        $router->add($middlewareTwo);
+        
+        $this->assertSame([$middlewareOne, $middlewareTwo], $router->getMiddlewares());
     }
 
     /**
-     * Provide data for testing 'add' method
+     * @expectedException \InvalidArgumentException
      */
-    public function addProvider()
+    public function testAddInvalidMiddleware()
     {
-        return [
-            ['wrong_callback', null, false],
-            [[$this, 'getMiddlewareCalledFirst'], null, true],
-            [[$this, 'getMiddlewareCalledFirst'], [$this, 'getMiddlewareCalledLast'], true]
-        ];  
+        $router = new Router($this->createMock(Routes::class));
+        $router->add('foo bar zoo');
     }
 
     /**
@@ -151,117 +195,46 @@ class RouterTest extends PHPUnit_Framework_TestCase
      */
     public function testRunMiddlewares()
     {
-        $routes = [
-            '/foo' => Route::create(['fn' => function($request, $response) {
-                $response->testMiddlewareCalls[] = 'run';
-                return $response;
-            }])
-        ];
+        $route = $this->createMock(Route::class);
 
-        list($request, $response) = $this->getRequests();
-        $this->expectRequestRoute($request, $routes['/foo']);
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->expects($this->once())->method('withAttribute')->with('route')->willReturn($request);
+        $requestOne = $this->createMock(ServerRequestInterface::class);
+        $requestTwo = $this->createMock(ServerRequestInterface::class);
+        
+        $response = $this->createMock(ResponseInterface::class);
+        $responseOne = $this->createMock(ResponseInterface::class);
+        $responseTwo = $this->createMock(ResponseInterface::class);
+        $finalResponse = $this->createMock(ResponseInterface::class);
+
+        $middlewareOne = $this->getMockBuilder(\stdClass::class)->setMethods(['__invoke'])->getMock();
+        $middlewareOne->expects($this->once())->method('__invoke')->id('one')
+            ->with($request, $response, $this->isInstanceOf(Closure::class))
+            ->will($this->returnCallback(function($a, $b, $next) use ($requestOne, $responseOne) {
+                return $next($requestOne, $responseOne);
+            }));
+
+        $middlewareTwo = $this->getMockBuilder(\stdClass::class)->setMethods(['__invoke'])->getMock();
+        $middlewareTwo->expects($this->once())->method('__invoke')->id('two')->after('one')
+            ->with($request, $response, $this->isInstanceOf(Closure::class))
+            ->will($this->returnCallback(function($a, $b, $next) use ($requestTwo, $responseTwo) {
+                return $next($requestTwo, $responseTwo);
+            }));
+        
+        $runner = $this->createCallbackMock($this->once(), [$requestTwo, $responseTwo], $finalResponse);
+        $factory = $this->createCallbackMock($this->once(), [$route], $runner);
+
+        $routes = $this->createMock(Routes::class);
+        $routes->expects($this->once())->method('getRoute')->with($request)->willReturn($route);
 
         $router = new Router($routes);
-        $router->add([$this, 'getMiddlewareCalledLast'])->add([$this, 'getMiddlewareCalledFirst']);
-
-        $result = $router($request, $response, function($request, $response) {
-            $response->testMiddlewareCalls[] = 'outer';
-            return $response;
-        });
-
-        $this->assertEquals(['first','last','run','outer'], $response->testMiddlewareCalls, "Actions were executed in wrong order");
-    }
-
-    /**
-     * Test getting and setting runner factory
-     */
-    public function testRunnerFactory()
-    {
-        $router = new Router([]);
-        $factory = $router->getFactory();
-
-        $this->assertEquals(RunnerFactory::class, get_class($factory), "By default 'getFactory' should return 'RunnerFactory' instance, not " . get_class($factory));
-
-        $self = $router->setFactory(function() {
-            return 'test';
-        });
-        $factory = $router->getFactory();
-
-        $this->assertEquals($router, $self, "'setFactory' must return an instance of router");
-        $this->assertEquals('test', $factory(), "Factory was not set or got correctly");
-
-        $this->expectException(\InvalidArgumentException::class);
-        $router->setFactory('test');
-    }
-
-    /**
-     * Get requests for testing
-     *
-     * @return array
-     */
-    public function getRequests()
-    {
-        $request = $this->createMock(ServerRequestInterface::class);
-        $response = $this->createMock(ResponseInterface::class);
-
-        $request->method('getUri')->will($this->returnValue('/foo'));
-        $request->method('getMethod')->will($this->returnValue('GET'));
-
-        return [$request, $response];
-    }
-
-    /**
-     * Get middleware action, that should ba called first in middleware chain
-     *
-     * @param ServerRequestInterface $request
-     * @param ResponseInterface      $response
-     * @param callback               $next
-     * @return ResponseInterface
-     */
-    public function getMiddlewareCalledFirst(ServerRequestInterface $request, ResponseInterface $response, $next)
-    {
-        $response->testMiddlewareCalls[] = 'first';
-        return $next($request, $response);
-    }
-
-    /**
-     * Get middleware action, that should be called last in middleware chain
-     *
-     * @param ServerRequestInterface $request
-     * @param ResponseInterface      $response
-     * @param callback               $next
-     * @return ResponseInterface
-     */
-    public function getMiddlewareCalledLast(ServerRequestInterface $request, ResponseInterface $response, $next)
-    {
-        $response->testMiddlewareCalls[] = 'last';
-        return $next($request, $response);   
-    }
-
-    /**
-     * Expect 'not found' response
-     * 
-     * @param ResponseInterface
-     */
-    public function expectNotFound(ResponseInterface $response)
-    {
-        $stream = $this->createMock(StreamInterface::class);
-        $stream->expects($this->once())->method('rewind');
-        $stream->expects($this->once())->method('write')->with($this->equalTo('Not Found'));
-
-        $response->method('getBody')->will($this->returnValue($stream));
-        $response->expects($this->once())->method('withBody')->with($this->equalTo($stream))->will($this->returnSelf());
-        $response->expects($this->once())->method('withStatus')->with($this->equalTo(404), $this->equalTo('Not Found'))->will($this->returnSelf());
-    }
-
-    /**
-     * Expect that request will return given route
-     *
-     * @param ServerRequestInterface $request
-     * @param Route $route
-     */
-    public function expectRequestRoute(ServerRequestInterface $request, $route)
-    {
-        $request->expects($this->once())->method('getAttribute')->with($this->equalTo('route'))->will($this->returnValue($route));
+        $router->setFactory($factory);
+        
+        $router->add($middlewareOne);
+        $router->add($middlewareTwo);
+        
+        $result = $router($request, $response);
+        
+        $this->assertSame($finalResponse, $result);
     }
 }
