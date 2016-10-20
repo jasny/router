@@ -4,7 +4,6 @@ namespace Jasny\Router;
 
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Jasny\Router\Route;
 
 /**
  * A runner can be invoked in order to run the action specified in a route
@@ -30,13 +29,12 @@ abstract class Runner
      */
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next = null)
     {
-        $response = $this->run($request, $response);
+        $newResponse = $this->run($request, $response);
 
         if (isset($next)) {
-            $response = call_user_func($next, $request, $response);
+            $response = call_user_func($next, $request, $newResponse);
         }
 
         return $response;
     }
 }
-
