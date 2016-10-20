@@ -1,25 +1,22 @@
 <?php
 
+namespace Jasny\Router\Middleware;
+
 use Jasny\Router\Middleware\BasePath;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UriInterface;
 
-class BasePathTest extends PHPUnit_Framework_TestCase
+use Jasny\Router\TestHelpers;
+
+/**
+ * @covers Jasny\Router\Middleware\BasePath
+ */
+class BasePathTest extends \PHPUnit_Framework_TestCase
 {
-    /**
-     * Test creating middleware with invalid parameter
-     *
-     * @dataProvider invalidConstructProvider
-     */
-    public function testInvalidConstruct($basePath)
-    {
-        $this->expectException(\InvalidArgumentException::class);
-
-        $pathHandler = new BasePath($basePath);
-    }
-
+    use TestHelpers;
+    
     /**
      * Provide data for testing invalid BasePath creation
      *
@@ -39,17 +36,14 @@ class BasePathTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * Test creating BasePath instance
+     * Test creating middleware with invalid parameter
      *
-     * @dataProvider validConstructProvider
-     * @param string $basePath
+     * @dataProvider invalidConstructProvider
+     * @expectedException InvalidArgumentException
      */
-    public function testValidConstruct($basePath, $validBasePath)
+    public function testInvalidConstruct($basePath)
     {
-        $pathHandler = new BasePath($basePath);
-
-        $this->assertNotEmpty($pathHandler->getBasePath(), "Empty base path");
-        $this->assertEquals($validBasePath, $pathHandler->getBasePath(), "Base path was not set correctly");
+        new BasePath($basePath);
     }
 
     /**
@@ -71,41 +65,32 @@ class BasePathTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * Test invoke with invalid 'next' param
+     * Test creating BasePath instance
+     *
+     * @dataProvider validConstructProvider
+     * @param string $basePath
      */
-    public function testInvokeInvalidNext()
+    public function testValidConstruct($basePath, $validBasePath)
     {
-        $middleware = new BasePath('/foo');
-        list($request, $response) = $this->getRequests();
+        $pathHandler = new BasePath($basePath);
 
-        $this->expectException(\InvalidArgumentException::class);
-
-        $result = $middleware($request, $response, 'not_callable');
+        $this->assertNotEmpty($pathHandler->getBasePath(), "Empty base path");
+        $this->assertEquals($validBasePath, $pathHandler->getBasePath(), "Base path was not set correctly");
     }
 
     /**
-     * Test case when given request path does not starts with given base path
-     *
-     * @dataProvider notFoundProvider
-     * @param string $basePath
-     * @param string $path 
+     * Test invoke with invalid 'next' param
+     * 
+     * @expectedException InvalidArgumentException
      */
-    public function testNotFound($basePath, $path)
+    public function testInvokeInvalidNext()
     {
-        $middleware = new BasePath($basePath);
-        list($request, $response) = $this->getRequests();
+        $request = $this->createMock(ServerRequestInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
 
-        $this->expectRequestGetPath($request, $path);
-        $this->expectNotFound($response);
+        $middleware = new BasePath('/foo');
 
-        $result = $middleware($request, $response, function($response, $request) {
-            $response->nextCalled = true;
-
-            return $response;
-        });
-
-        $this->assertEquals(get_class($response), get_class($result), "Middleware should return response object");
-        $this->assertFalse(isset($response->nextCalled), "'next' was called");
+        $middleware($request, $response, 'not_callable');
     }
 
     /**
@@ -128,28 +113,27 @@ class BasePathTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * Test correct case, when path contains base path
-     *
-     * @dataProvider foundProvider
+     * Test case when given request path does not starts with given base path
+     * @dataProvider notFoundProvider
+     * 
      * @param string $basePath
      * @param string $path 
-     * @param string $noBasePath
      */
-    public function testFound($basePath, $path, $noBasePath)
+    public function testNotFound($basePath, $path)
     {
+        $request = $this->createMock(ServerRequestInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
+
         $middleware = new BasePath($basePath);
-        list($request, $response) = $this->getRequests();
+        
+        $this->expectRequestGetPath($request, $path);
+        $finalResponse = $this->expectNotFound($response);
 
-        $this->expectRequestSetBasePath($request, $basePath, $path, $noBasePath);
+        $next = $this->createCallbackMock($this->never());
+        
+        $result = $middleware($request, $response, $next);
 
-        $result = $middleware($request, $response, function($request, $response) {
-            $response->nextCalled = true;
-
-            return $response;
-        });
-
-        $this->assertEquals(get_class($response), get_class($result), "Middleware should return response object");
-        $this->assertTrue($response->nextCalled, "'next' was not called");
+        $this->assertSame($finalResponse, $result);
     }
 
     /**
@@ -172,19 +156,31 @@ class BasePathTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * Get requests for testing
-     *
-     * @param string $path
-     * @return array
+     * Test correct case, when path contains base path
+     * @dataProvider foundProvider
+     * 
+     * @param string $basePath
+     * @param string $path 
+     * @param string $noBasePath
      */
-    public function getRequests($path = null)
+    public function testFound($basePath, $path, $noBasePath)
     {
         $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
+        $finalRespose = $this->createMock(ResponseInterface::class);
 
-        return [$request, $response];
+        $middleware = new BasePath($basePath);
+
+        $this->expectRequestSetBasePath($request, $basePath, $path, $noBasePath);
+
+        $next = $this->createCallbackMock($this->once(), [$request, $response], $finalRespose);
+        
+        $result = $middleware($request, $response, $next);
+
+        $this->assertSame($finalRespose, $result);
     }
 
+    
     /**
      * Expect that request will return a path
      *
@@ -221,15 +217,19 @@ class BasePathTest extends PHPUnit_Framework_TestCase
      * Expect for not found error
      *
      * @param ResponseInterface $response 
+     * @return ResponseInterface
      */
     public function expectNotFound(ResponseInterface $response)
     {
+        $finalResponse = $this->createMock(ResponseInterface::class);
+        
+        $response->expects($this->once())->method('withStatus')->with(404)->willReturn($finalResponse);
+
         $stream = $this->createMock(StreamInterface::class);
-        $stream->expects($this->once())->method('rewind');
         $stream->expects($this->once())->method('write')->with($this->equalTo('Not Found'));
 
-        $response->method('getBody')->will($this->returnValue($stream));
-        $response->expects($this->once())->method('withBody')->with($this->equalTo($stream))->will($this->returnSelf());
-        $response->expects($this->once())->method('withStatus')->with($this->equalTo(404), $this->equalTo('Not Found'))->will($this->returnSelf());
+        $finalResponse->expects($this->once())->method('getBody')->willReturn($stream);
+        
+        return $finalResponse;
     }
 }

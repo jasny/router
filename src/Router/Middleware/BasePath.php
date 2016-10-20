@@ -57,13 +57,15 @@ class BasePath
         $uri = $request->getUri();
         $path = $this->normalizePath($uri->getPath());
 
-        if (!$this->hasBasePath($path)) return $this->setError($response);
+        if (!$this->hasBasePath($path)) {
+            return $this->notFound($request, $response);
+        }
 
         $noBase = $this->getBaselessPath($path);
         $noBaseUri = $uri->withPath($noBase);        
-        $request = $request->withUri($noBaseUri)->withAttribute('original_uri', $uri);
+        $rewrittenRequest = $request->withUri($noBaseUri)->withAttribute('original_uri', $uri);
 
-        return call_user_func($next, $request, $response);
+        return $next($rewrittenRequest, $response);
     }
 
     /**
@@ -100,19 +102,17 @@ class BasePath
     }
 
     /**
-     * Set error response
+     * Respond with 404 Not Found
      *
-     * @param ResponseInterface $response
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface      $response
      * @return ResponseInterface
      */
-    protected function setError($response)
+    protected function notFound(ServerRequestInterface $request, ResponseInterface $response)
     {
-        $message = 'Not Found';
+        $notFound = $response->withStatus(404);
+        $notFound->getBody()->write('Not Found');
 
-        $body = $response->getBody();        
-        $body->rewind();
-        $body->write($message);
-
-        return $response->withStatus(404, $message)->withBody($body);
+        return $notFound;
     }
 }
