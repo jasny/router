@@ -3,90 +3,126 @@
 namespace Jasny\Router;
 
 use Jasny\Router\Route;
-use Jasny\Router\Runner\PhpScript;
+use Jasny\Router\Runner;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
+use org\bovigo\vfs\vfsStream;
+use org\bovigo\vfs\vfsStreamDirectory;
+
+/**
+ * @covers Jasny\Router\Runner\PhpScript
+ */
 class PhpScriptTest extends \PHPUnit_Framework_TestCase
 {
     /**
-     * Test creating PhpScript runner
-     *
-     * @dataProvider phpScriptProvider
-     * @param Route $route 
-     * @param boolean $positive
+     * @var vfsStreamDirectory
      */
-    public function testPhpScript($route, $positive)
-    {   
-        $runner = new PhpScript($route);
+    protected $root;
+    
+    public function setUp()
+    {
+        $this->root = vfsStream::setup('root');
+        $this->root->addChild(vfsStream::newFile('true.php')->setContent('<?php ?>'));
+        $this->root->addChild(vfsStream::newFile('foo.php')->setContent('<?php return "foo"; ?>'));
+    }
 
+    public function testInvoke()
+    {
+        $request = $this->createMock(ServerRequestInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
+        $finalResponse = $this->createMock(ResponseInterface::class);
+
+        $route = $this->createMock(Route::class);
+        $route->file = vfsStream::url('root/foo.php');
+        
+        $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
+        
+        $runner = $this->getMockBuilder(Runner\PhpScript::class)->setMethods(['includeScript'])->getMock();
+        $runner->expects($this->once())->method('includeScript')
+            ->with(vfsStream::url('root/foo.php'), $request, $response)
+            ->willReturn($finalResponse);
+
+        $result = $runner($request, $response);
+        
+        $this->assertSame($finalResponse, $result);
+    }
+    
+    public function phpScriptProvider()
+    {
+        $routeTrue = $this->createMock(Route::class);
+        $routeTrue->file = vfsStream::url('root/true.php');
+        
+        $routeFoo = $this->createMock(Route::class);
+        $routeFoo->file = vfsStream::url('root/foo.php');
+        
+        return [
+            [$routeTrue, 1],
+            [$routeFoo, 'foo']
+        ];
+    }
+    
+    /**
+     * @dataProvider phpScriptProvider
+     * 
+     * @param Route $route
+     * @param mixed $expected
+     */
+    public function testInvokeIncludeScript($route, $expected)
+    {
         $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
         $request->expects($this->once())->method('getAttribute')->with($this->equalTo('route'))->will($this->returnValue($route));
 
-        if (!$positive) $this->expectException(\RuntimeException::class);
-        $result = $runner->run($request, $response);
-
-        if ($route->type === 'returnTrue') {
-            $this->assertEquals($response, $result, "Request object was not returned as result");            
-        } else {
-            $this->assertEquals($request, $result['request'], "Request object was not passed correctly to result");
-            $this->assertEquals($response, $result['response'], "Response object was not passed correctly to result");
+        $runner = new Runner\PhpScript($route);
+        
+        if ($expected === 1) {
+            $expected = $response;
         }
-
-        unlink($route->file);
+        
+        $result = $runner->run($request, $response);
+        
+        $this->assertSame($expected, $result);
     }
 
     /**
-     * Provide data fpr testing 'create' method
+     * @expectedException \RuntimeException
+     * @expectedExceptionMessage Failed to route using 'vfs://root/bar.php': File doesn't exist
      */
-    public function phpScriptProvider()
+    public function testInvokeWithNonExistingFile()
     {
-        return [
-            [Route::create(['test' => 'test']), false],
-            [Route::create(['fn' => 'testFunction', 'value' => 'test']), false],
-            [Route::create(['controller' => 'TestController', 'value' => 'test']), false],
-            [Route::create(['file' => '', 'value' => 'test']), false],
-            [Route::create(['file' => 'some_file.php', 'value' => 'test']), false],
-            [Route::create(['file' => '../' . basename(getcwd()), 'value' => 'test']), false],
-            [Route::create(['file' => $this->createTmpScript('returnTrue'), 'type' => 'returnTrue']), true],
-            [Route::create(['file' => $this->createTmpScript('returnNotTrue'), 'type' => 'returnNotTrue']), true]
-        ];
+        $request = $this->createMock(ServerRequestInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
+
+        $route = $this->createMock(Route::class);
+        $route->file = vfsStream::url('root/bar.php');
+        
+        $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
+        
+        $runner = $this->getMockBuilder(Runner\PhpScript::class)->setMethods(['includeScript'])->getMock();
+        $runner->expects($this->never())->method('includeScript');
+
+        $runner($request, $response);
     }
 
     /**
-     * Create single tmp script file for testing
-     *
-     * @param string $type ('returnTrue', 'returnNotTrue')
-     * @return string $path
+     * @expectedException \RuntimeException
+     * @expectedExceptionMessage Won't route to 'vfs://root/../bar.php': '~', '..' are not allowed in filename
      */
-    public function createTmpScript($type)
+    public function testInvokeWithIlligalFilename()
     {
-        $dir = rtrim(sys_get_temp_dir(), '/');
+        $request = $this->createMock(ServerRequestInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
 
-        do {
-            $name = $this->getRandomString() . '-test-script.php';
-            $path = $dir . '/' . $name;
+        $route = $this->createMock(Route::class);
+        $route->file = vfsStream::url('root/../bar.php');
+        
+        $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
+        
+        $runner = $this->getMockBuilder(Runner\PhpScript::class)->setMethods(['includeScript'])->getMock();
+        $runner->expects($this->never())->method('includeScript');
 
-            if (!file_exists($path)) break;
-        } while (true);
-
-        $content = $type === 'returnTrue' ? "<?php\n return true;" : "<?php\n return ['request' => \$request, 'response' => \$response];";
-        $bytes = file_put_contents($path, $content);
-
-        $this->assertTrue((int)$bytes > 0);
-
-        return $path;
+        $runner($request, $response);
     }
-
-    /**
-     * Get random string of given length (no more then length of md5 hash)
-     *
-     * @param int $length
-     * @return string
-     */
-    public function getRandomString($length = 10)
-    {        
-        return substr(md5(microtime(true) * mt_rand()), 0, $length);
-    }
+    
 }

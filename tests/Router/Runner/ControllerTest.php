@@ -34,6 +34,7 @@ class ControllerTest extends \PHPUnit_Framework_TestCase
         $runner->expects($this->once())->method('instantiate')->with($class)->willReturn($controller);
 
         $result = $runner($request, $response);
+        
         $this->assertSame($finalResponse, $result);
     }
     

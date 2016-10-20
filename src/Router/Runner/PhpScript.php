@@ -10,7 +10,18 @@ use Psr\Http\Message\ResponseInterface;
  * Route to a PHP script
  */
 class PhpScript extends Runner
-{            
+{
+    /**
+     * Include a file 
+     * @param type $file
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface $response
+     */
+    protected function includeScript($file, ServerRequestInterface $request, ResponseInterface $response)
+    {
+        return include $file;
+    }
+    
     /**
      * Route to a file
      * 
@@ -23,16 +34,16 @@ class PhpScript extends Runner
         $route = $request->getAttribute('route');        
         $file = !empty($route->file) ? ltrim($route->file, '/') : '';
 
-        if (!file_exists($file)) {
-            throw new \RuntimeException("Failed to route using '$file': File '$file' doesn't exist.");
-        }
-
         if ($file[0] === '~' || strpos($file, '..') !== false) {
-            throw new \RuntimeException("Won't route using '$file': '~', '..' are not allowed in filename.");
+            throw new \RuntimeException("Won't route to '$file': '~', '..' are not allowed in filename");
         }
         
-        $result = include $file;
+        if (!file_exists($file)) {
+            throw new \RuntimeException("Failed to route using '$file': File doesn't exist");
+        }
 
-        return $result === true ? $response : $result;
+        $result = $this->includeScript($file, $request, $response);
+
+        return $result === true || $result === 1 ? $response : $result;
     }
 }
