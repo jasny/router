@@ -12,19 +12,25 @@ use Psr\Http\Message\ResponseInterface;
 class Controller extends Runner
 {
     /**
-     * Create a controller object
+     * Get class name from controller name
      * 
      * @param string $name
-     * @return 
+     * @return string
      */
-    protected function instantiateController($name)
+    protected function getClass($name)
     {
-        $class = \Jasny\studlycase($name);
-        
-        if (!class_exists($class)) {
-            throw new \RuntimeException("Can not route to controller '$class': class not exists");
-        }
-
+        return strstr($name, '-') ? \Jasny\studlycase($name) : $name;
+    }
+    
+    /**
+     * Instantiate a controller object
+     * @codeCoverageIgnore
+     * 
+     * @param string $class
+     * @return callable|object
+     */
+    protected function instantiate($class)
+    {
         return new $class();
     }
     
@@ -40,11 +46,17 @@ class Controller extends Runner
         $route = $request->getAttribute('route');        
         $name = !empty($route->controller) ? $route->controller : null;
 
-        $controller = $this->instantiateController($name);
+        $class = $this->getClass($name);
         
-        if (!method_exists($controller, '__invoke')) {
+        if (!class_exists($class)) {
+            throw new \RuntimeException("Can not route to controller '$class': class not exists");
+        }
+        
+        if (!method_exists($class, '__invoke')) {
             throw new \RuntimeException("Can not route to controller '$class': class does not have '__invoke' method");   
         }
+        
+        $controller = $this->instantiate($class);
         
         return $controller($request, $response);
     }
