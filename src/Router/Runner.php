@@ -22,9 +22,9 @@ abstract class Runner
     /**
      * Invoke the action specified in the route and call the next method
      * 
-     * @param ServerRequestInterface  $request
-     * @param ResponseInterface $response
-     * @param callback          $next      Callback for if runner is used as middleware
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface      $response
+     * @param callback               $next      Callback for if runner is used as middleware
      * @return ResponseInterface
      */
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next = null)
@@ -32,9 +32,9 @@ abstract class Runner
         $newResponse = $this->run($request, $response);
 
         if (isset($next)) {
-            $response = call_user_func($next, $request, $newResponse);
+            $newResponse = call_user_func($next, $request, $newResponse);
         }
 
-        return $response;
+        return $newResponse;
     }
 }
