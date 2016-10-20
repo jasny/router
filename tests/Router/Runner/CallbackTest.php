@@ -1,5 +1,7 @@
 <?php
 
+namespace Jasny\Router;
+
 use Jasny\Router\Route;
 use Jasny\Router\Runner\Callback;
 use Psr\Http\Message\ServerRequestInterface;
@@ -10,7 +12,7 @@ use Jasny\Router\TestHelpers;
 /**
  * @covers Jasny\Router\Runner\Callback
  */
-class CallbackTest extends PHPUnit_Framework_TestCase
+class CallbackTest extends \PHPUnit_Framework_TestCase
 {
     use TestHelpers;
     

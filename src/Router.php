@@ -3,7 +3,7 @@
 namespace Jasny;
 
 use Jasny\Router\Routes;
-use Jasny\Router\Runner\RunnerFactory;
+use Jasny\Router\RunnerFactory;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 

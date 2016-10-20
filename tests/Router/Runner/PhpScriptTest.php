@@ -1,11 +1,13 @@
 <?php
 
+namespace Jasny\Router;
+
 use Jasny\Router\Route;
 use Jasny\Router\Runner\PhpScript;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
-class PhpScriptTest extends PHPUnit_Framework_TestCase
+class PhpScriptTest extends \PHPUnit_Framework_TestCase
 {
     /**
      * Test creating PhpScript runner

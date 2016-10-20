@@ -1,6 +1,6 @@
 <?php
 
-namespace Jasny\Router\Runner;
+namespace Jasny\Router;
 
 use Jasny\Router\Route;
 use Jasny\Router\Runner;

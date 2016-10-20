@@ -1,5 +1,7 @@
 <?php
 
+namespace Jasny\Router;
+
 use Jasny\Router;
 use Jasny\Router\Route;
 use Jasny\Router\Routes;
@@ -13,7 +15,7 @@ use Jasny\Router\TestHelpers;
 /**
  * @covers Jasny\Router
  */
-class RouterTest extends PHPUnit_Framework_TestCase
+class RouterTest extends \PHPUnit_Framework_TestCase
 {
     use TestHelpers;
     
