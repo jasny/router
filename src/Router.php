@@ -115,7 +115,7 @@ class Router
      * @param ResponseInterface      $response
      * @return ResponseInterface
      */
-    final public function run(ServerRequestInterface $request, ResponseInterface $response)
+    final public function handle(ServerRequestInterface $request, ResponseInterface $response)
     {
         return $this->__invoke($request, $response);
     }
@@ -130,11 +130,11 @@ class Router
      */
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next = null)
     {
-        $handle = [$this, 'handle'];
+        $run = [$this, 'run'];
 
-        #Call to $this->handle will be executed last in the chain of middlewares
-        $next = function(ServerRequestInterface $request, ResponseInterface $response) use ($next, $handle) {
-            return call_user_func($handle, $request, $response, $next);
+        #Call to $this->run will be executed last in the chain of middlewares
+        $next = function(ServerRequestInterface $request, ResponseInterface $response) use ($next, $run) {
+            return call_user_func($run, $request, $response, $next);
         };
 
         #Build middlewares call chain, so that the last added was executed in first place
@@ -155,7 +155,7 @@ class Router
      * @param callback      $next
      * @return ResponseInterface
      */
-    protected function handle(ServerRequestInterface $request, ResponseInterface $response, $next = null)
+    public function run(ServerRequestInterface $request, ResponseInterface $response, $next = null)
     {
         $glob = new Glob($this->routes);
         $route = $glob->getRoute($request);

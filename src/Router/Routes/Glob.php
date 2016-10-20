@@ -145,7 +145,7 @@ class Glob extends ArrayObject implements Routes
             if ($path !== '/') $path = rtrim($path, '/');
             
             if ($this->fnmatch($path, $url)) {
-                if ((empty($inc) || in_array($method, $inc)) && !in_array($method, $excl)) {
+                if (!$method || ((empty($inc) || in_array($method, $inc)) && !in_array($method, $excl))) {
                     $ret = $route;
                     break;
                 }
@@ -356,9 +356,9 @@ class Glob extends ArrayObject implements Routes
      * @param ServerRequestInterface $request
      * @return boolean
      */
-    public function hasRoute(ServerRequestInterface $request)
+    public function hasRoute(ServerRequestInterface $request, $withMethod = true)
     {
-        $route = $this->findRoute($request->getUri(), $request->getMethod());
+        $route = $this->findRoute($request->getUri(), $withMethod ? $request->getMethod() : null);
         return isset($route);
     }
     

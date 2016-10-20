@@ -24,9 +24,9 @@ class RouterTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * Test that on router 'run', method '__invoke' is called
+     * Test that on router 'handle', method '__invoke' is called
      */
-    public function testRun()
+    public function testHandle()
     {
         $router = $this->createMock(Router::class, ['__invoke']);
         list($request, $response) = $this->getRequests();
@@ -35,7 +35,7 @@ class RouterTest extends PHPUnit_Framework_TestCase
             return ['request' => $arg1, 'response' => $arg2];
         }));
 
-        $result = $router->run($request, $response);
+        $result = $router->handle($request, $response);
 
         $this->assertEquals($request, $result['request'], "Request was not processed correctly");
         $this->assertEquals($response, $result['response'], "Response was not processed correctly");
@@ -153,7 +153,7 @@ class RouterTest extends PHPUnit_Framework_TestCase
     {
         $routes = [
             '/foo' => Route::create(['fn' => function($request, $response) {
-                $response->testMiddlewareCalls[] = 'handle';
+                $response->testMiddlewareCalls[] = 'run';
                 return $response;
             }])
         ];
@@ -169,7 +169,7 @@ class RouterTest extends PHPUnit_Framework_TestCase
             return $response;
         });
 
-        $this->assertEquals(['first','last','handle','outer'], $response->testMiddlewareCalls, "Actions were executed in wrong order");
+        $this->assertEquals(['first','last','run','outer'], $response->testMiddlewareCalls, "Actions were executed in wrong order");
     }
 
     /**
