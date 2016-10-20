@@ -7,28 +7,15 @@ use Jasny\Router\Runner\RunnerFactory;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
-use PHPUnit_Framework_MockObject_Matcher_Invocation as Invocation;
 
+use Jasny\Router\TestHelpers;
+
+/**
+ * @covers Jasny\Router
+ */
 class RouterTest extends PHPUnit_Framework_TestCase
 {
-    /**
-     * Create mock for next callback
-     * 
-     * @param Invocation  $matcher
-     * @param array       $with     With arguments
-     * @param mixed       $return
-     * @return \PHPUnit_Framework_MockObject_MockObject
-     */
-    protected function createCallbackMock(Invocation $matcher, $with = [], $return = null)
-    {
-        $callback = $this->getMockBuilder(\stdClass::class)->setMethods(['__invoke'])->getMock();
-        $callback->expects($matcher)->method('__invoke')
-            ->with(...$with)
-            ->willReturn($return);
-        
-        return $callback;
-    }
-    
+    use TestHelpers;
     
     /**
      * Test creating Router
