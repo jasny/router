@@ -29,6 +29,7 @@ class NotFound
      **/
     protected $methodNotAllowed = null;
 
+    
     /**
      * Class constructor
      * 
@@ -38,12 +39,22 @@ class NotFound
      */
     public function __construct(Routes $routes, $notFound = 404, $methodNotAllowed = null)
     {
-        if (!(is_numeric($notFound) && $notFound >= 100 && $notFound <= 599) && !is_callable($notFound)) {
-            throw new \InvalidArgumentException("'Not found' parameter should be a code in range 100-599 or a callback");
+        if (is_string($notFound) && ctype_digit($notFound)) {
+            $notFound = (int)$notFound;
+        }
+        if (!(is_int($notFound) && $notFound >= 100 && $notFound <= 999) && !is_callable($notFound)) {
+            throw new \InvalidArgumentException("'notFound' should be valid HTTP status code or a callback");
         }
 
-        if ($methodNotAllowed && !(is_numeric($methodNotAllowed) && $methodNotAllowed >= 100 && $methodNotAllowed <= 599) && !is_callable($methodNotAllowed)) {
-            throw new \InvalidArgumentException("'Method not allowed' parameter should be a code in range 100-599 or a callback");   
+        if (is_string($methodNotAllowed) && ctype_digit($methodNotAllowed)) {
+            $methodNotAllowed = (int)$methodNotAllowed;
+        }
+        if (
+            isset($methodNotAllowed) &&
+            !(is_int($methodNotAllowed) && $methodNotAllowed >= 100 && $methodNotAllowed <= 999) &&
+            !is_callable($methodNotAllowed)
+        ) {
+            throw new \InvalidArgumentException("'methodNotAllowed' should be valid HTTP status code or a callback");   
         }
 
         $this->routes = $routes;
@@ -60,6 +71,7 @@ class NotFound
     {
         return $this->routes;
     }
+    
 
     /**
      * Run middleware action
@@ -69,37 +81,34 @@ class NotFound
      * @param callback               $next
      * @return ResponseInterface
      */
-    public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next = null)
+    public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next)
     {
-        if ($next && !is_callable($next)) {
+        if (!is_callable($next)) {
             throw new \InvalidArgumentException("'next' should be a callback");            
         }
 
-        if ($this->getRoutes()->hasRoute($request)) {
-            return $next ? $next($request, $response) : $response;    
+        if (!$this->getRoutes()->hasRoute($request)) {
+            $status = $this->methodNotAllowed && $this->getRoutes()->hasRoute($request, false) ? 
+                $this->methodNotAllowed : $this->notFound;
+
+            return is_numeric($status) ? $this->simpleResponse($response, $status) : $status($request, $response);
         }
-
-        $status = $this->methodNotAllowed && $this->getRoutes()->hasRoute($request, false) ? 
-            $this->methodNotAllowed : $this->notFound;
-
-        return is_numeric($status) ? $this->simpleResponse($response, $status) : call_user_func($status, $request, $response);
+        
+        return $next($request, $response);
     }
 
     /**
      * Simple response
      *
      * @param ResponseInterface $response
-     * @param int $code 
+     * @param int               $code
      * @return ResponseInterface
      */
     protected function simpleResponse(ResponseInterface $response, $code)
     {
-        $message = 'Not Found';
+        $notFound = $response->withStatus($code);
+        $notFound->getBody()->write('Not found');
 
-        $body = $response->getBody();        
-        $body->rewind();
-        $body->write($message);
-
-        return $response->withStatus($code, $message)->withBody($body);
+        return $notFound;
     }
 }
