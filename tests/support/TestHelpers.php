@@ -3,6 +3,7 @@
 namespace Jasny\Router;
 
 use PHPUnit_Framework_MockObject_Matcher_Invocation as Invocation;
+use PHPUnit_Framework_MockObject_MockObject as MockObject;
 
 /**
  * Helper methods for PHPUnit tests
@@ -15,7 +16,7 @@ trait TestHelpers
      * @param Invocation  $matcher
      * @param array       $with     With arguments
      * @param mixed       $return
-     * @return \PHPUnit_Framework_MockObject_MockObject
+     * @return MockObject
      */
     protected function createCallbackMock(Invocation $matcher, $with = [], $return = null)
     {
