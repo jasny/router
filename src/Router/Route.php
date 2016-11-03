@@ -10,27 +10,21 @@ class Route extends \stdClass
     /**
      * Class constructor
      * 
-     * @param array $values
+     * @param array|stdClass $values
      */
-    public function __construct(array $values)
-    {
-        foreach ($values as $key => $value) {
-            $this->$key = $value;
-        }
-    }
-    
-    /**
-     * Factory method
-     * 
-     * @param array|\stdClass $values
-     * @return Route
-     */
-    public static function create($values)
+    public function __construct($values)
     {
         if ($values instanceof \stdClass) {
             $values = get_object_vars($values);
         }
         
-        return new static($values);
+        if (!is_array($values)) {
+            $type = (is_object($values) ? get_class($values) . ' ' : '') . gettype($values);
+            throw new \InvalidArgumentException("Route values should be an array, not a $type");
+        }
+        
+        foreach ($values as $key => $value) {
+            $this->$key = $value;
+        }
     }
 }
