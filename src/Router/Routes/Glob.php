@@ -6,6 +6,7 @@ use ArrayObject;
 use Jasny\Router\UrlParsing;
 use Jasny\Router\Routes;
 use Jasny\Router\Route;
+use Jasny\Router\Routes\RouteBinding;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
@@ -14,6 +15,19 @@ use Psr\Http\Message\ServerRequestInterface;
 class Glob extends ArrayObject implements Routes
 {
     use UrlParsing;
+    use RouteBinding;
+    
+    /**
+     * Class constructor
+     * 
+     * @param Routes[]|array|\Traversable $input
+     * @param int                         $flags
+     */
+    public function __construct($input = [], $flags = 0)
+    {
+        $routes = $this->createRoutes($input);
+        parent::__construct($routes, $flags);
+    }
     
     /**
      * Create a route from an assisiative array or stdClass object
@@ -35,14 +49,7 @@ class Glob extends ArrayObject implements Routes
             throw new \InvalidArgumentException("Unable to create a Route from value " . var_export($value, true));
         }
         
-        $route = Route::create($value);
-        
-        if (!isset($route)) {
-            throw new \InvalidArgumentException("Unable to create a Route from " . var_export($value, true) . ": "
-                . "neither 'controller', 'fn' or 'file' key is defined");
-        }
-        
-        return $route;
+        return new Route($value);
     }
     
     /**
@@ -153,200 +160,6 @@ class Glob extends ArrayObject implements Routes
         }
 
         return $ret;
-    }
-    
-    
-    /**
-     * Fill out the routes variables based on the url parts.
-     * 
-     * @param array|\stdClass $vars     Route variables
-     * @param ServerRequestInterface   $request
-     * @param array           $parts    URL parts
-     * @return array
-     */
-    protected function bind($vars, ServerRequestInterface $request, array $parts)
-    {
-        $values = [];
-        $type = is_array($vars) && array_keys($vars) === array_keys(array_keys($vars)) ? 'numeric' : 'assoc';
-
-        foreach ($vars as $key => $var) {
-            if (!isset($var)) continue;
-            
-            if (is_object($var) && !$var instanceof \stdClass) {
-                $part = array($var);
-            } elseif (!is_scalar($var)) {
-                $part = array($this->bind($var, $request, $parts));
-            } elseif ($var[0] === '$') {
-                $options = array_map('trim', explode('|', $var));
-                $part = $this->bindVar($type, $request, $parts, $options);
-            } elseif ($var[0] === '~' && substr($var, -1) === '~') {
-                $pieces = array_map('trim', explode('~', substr($var, 1, -1)));
-                $bound = array_filter($this->bind($pieces, $request, $parts));
-                $part = array(join('', $bound));
-            } else {
-                $part = array($var);
-            }
-            
-            if ($type === 'assoc') {
-                $values[$key] = $part[0];
-            } else {
-                $values = array_merge($values, $part);
-            }
-        }
-
-        if ($vars instanceof Route) {
-            $values = Route::create($values);
-        } elseif (is_object($vars) && $type === 'assoc') {
-            $values = (object)$values;
-        }
-        
-        return $values;
-    }
-    
-    /**
-     * Bind variable
-     * 
-     * @param string                 $type     'assoc' or 'numeric'
-     * @param ServerRequestInterface $request
-     * @param array                  $parts
-     * @param array                  $options
-     * @return array
-     */
-    protected function bindVar($type, ServerRequestInterface $request, array $parts, array $options)
-    {
-        foreach ($options as $option) {
-            $value = null;
-            
-            $bound = 
-                $this->bindVarString($option, $value) ||
-                $this->bindVarSuperGlobal($option, $request, $value) ||
-                $this->bindVarRequestHeader($option, $request, $value) ||
-                $this->bindVarMultipleUrlParts($option, $type, $parts, $value) ||
-                $this->bindVarSingleUrlPart($option, $parts, $value);
-            
-            if ($bound && isset($value)) {
-                return $value;
-            }
-        }
-        
-        return [null];
-    }
-    
-    /**
-     * Bind variable when option is a normal string
-     * 
-     * @param string $option
-     * @param mixed  $value   OUTPUT
-     * @return boolean
-     */
-    protected function bindVarString($option, &$value)
-    {
-        if ($option[0] !== '$') {
-            $value = [$option];
-            return true;
-        }
-        
-        return false;
-    }
-     
-    /**
-     * Bind variable when option is a super global
-     * 
-     * @param string $option
-     * @param mixed  $value   OUTPUT
-     * @return boolean
-     */
-    protected function bindVarSuperGlobal($option, ServerRequestInterface $request, &$value)
-    {
-        if (preg_match('/^\$_(GET|POST|COOKIE)\[([^\[]*)\]$/i', $option, $matches)) {
-            list(, $var, $key) = $matches;
-
-            $var = strtolower($var);
-            $data = null;
-
-            if ($var === 'get') {
-                $data = $request->getQueryParams();                
-            } elseif ($var === 'post') {
-                $data = $request->getParsedBody();
-            } elseif ($var === 'cookie') {
-                $data = $request->getCookieParams();
-            }
-
-            $value = isset($data[$key]) ? [$data[$key]] : null;
-            return true;
-        }
-        
-        return false;
-    }
-
-    /**
-     * Bind variable when option is a request header
-     * 
-     * @param string                 $option
-     * @param ServerRequestInterface $request
-     * @param mixed                  $value   OUTPUT
-     * @return boolean
-     */
-    protected function bindVarRequestHeader($option, ServerRequestInterface $request, &$value)
-    {
-        if (preg_match('/^\$(?:HTTP_)?([A-Z_]+)$/', $option, $matches)) {
-            $sentence = preg_replace('/[\W_]+/', ' ', $matches[1]);
-            $name = str_replace(' ', '-', ucwords($sentence));
-            
-            $value = [$request->getHeaderLine($name)];
-            return true;
-        }
-        
-        return false;
-    }
-    
-    /**
-     * Bind variable when option contains multiple URL parts
-     * 
-     * @param string $option
-     * @param string $type    'assoc' or 'numeric'
-     * @param array  $parts   Url parts
-     * @param mixed  $value   OUTPUT
-     * @return boolean
-     */
-    protected function bindVarMultipleUrlParts($option, $type, array $parts, &$value)
-    {
-        if (substr($option, -3) === '...' && ctype_digit(substr($option, 1, -3))) {
-            $i = (int)substr($option, 1, -3);
-
-            if ($type === 'assoc') {
-                throw new \InvalidArgumentException("Binding multiple parts using '$option' is only allowed in numeric arrays");
-            } else {
-                $value = array_slice($parts, $i - 1);
-            }
-            
-            return true;
-        }
-        
-        return false;
-    }
-    
-    /**
-     * Bind variable when option contains a single URL part
-     * 
-     * @param string $option
-     * @param array  $parts   Url parts
-     * @param mixed  $value   OUTPUT
-     * @return boolean
-     */
-    protected function bindVarSingleUrlPart($option, array $parts, &$value)
-    {
-        if (ctype_digit(substr($option, 1))) {
-            $i = (int)substr($option, 1);
-            $part = array_slice($parts, $i - 1, 1);
-
-            if (!empty($part)) {
-                $value = $part;
-                return true;
-            }
-        }
-        
-        return false;
     }
     
     

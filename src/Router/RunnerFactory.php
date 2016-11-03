@@ -1,8 +1,9 @@
 <?php
 
-namespace Jasny\Router\Runner;
+namespace Jasny\Router;
 
 use Jasny\Router\Route;
+use Jasny\Router\Runner;
 
 /**
  * Factory of Runner instances
@@ -18,11 +19,11 @@ class RunnerFactory
     public function __invoke(Route $route)
     {
         if (isset($route->controller)) {
-            $class = Controller::class;
+            $class = Runner\Controller::class;
         } elseif (isset($route->fn)) {
-            $class = Callback::class;
+            $class = Runner\Callback::class;
         } elseif (isset($route->file)) {
-            $class = PhpScript::class;
+            $class = Runner\PhpScript::class;
         } else {
             throw new \InvalidArgumentException("Route has neither 'controller', 'fn' or 'file' defined");
         }
@@ -30,4 +31,3 @@ class RunnerFactory
         return new $class();
     }
 }
-

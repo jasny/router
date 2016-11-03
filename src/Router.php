@@ -2,8 +2,8 @@
 
 namespace Jasny;
 
-use Jasny\Router\Runner\RunnerFactory;
-use Jasny\Router\Routes\Glob;
+use Jasny\Router\Routes;
+use Jasny\Router\RunnerFactory;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -14,9 +14,9 @@ class Router
 {
     /**
      * Specific routes
-     * @var array
+     * @var Routes
      */
-    protected $routes = [];    
+    protected $routes;
 
     /**
      * Middlewares actions
@@ -28,22 +28,23 @@ class Router
      * Factory of Runner objects
      * @var RunnerFactory
      **/
-    protected $factory = null;
+    protected $factory;
+    
     
     /**
      * Class constructor
      * 
-     * @param array $routes
+     * @param Routes $routes
      */
-    public function __construct(array $routes)
+    public function __construct(Routes $routes)
     {
         $this->routes = $routes;
     }
     
     /**
-     * Get a list of all routes
+     * Get a all routes
      * 
-     * @return object
+     * @return Routes
      */
     public function getRoutes()
     {
@@ -51,7 +52,7 @@ class Router
     }    
 
     /**
-     * Get middlewares
+     * Get all middlewares
      *
      * @return array
      */
@@ -60,6 +61,7 @@ class Router
         return $this->middlewares;
     }
 
+    
     /**
      * Get factory of Runner objects
      *
@@ -100,13 +102,14 @@ class Router
     public function add($middleware)
     {
         if (!is_callable($middleware)) {
-            throw new \InvalidArgumentException("Middleware should be a callable");
+            throw new \InvalidArgumentException("Middleware should be callable");
         }
 
         $this->middlewares[] = $middleware;
 
         return $this;
     }
+    
     
     /**
      * Run the action for the request
@@ -130,17 +133,16 @@ class Router
      */
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next = null)
     {
-        $run = [$this, 'run'];
+        if (empty($this->middlewares)) {
+            return $this->run($request, $response, $next);
+        }
+        
+        $stack = array_merge([[$this, 'run']], $this->middlewares);
 
-        #Call to $this->run will be executed last in the chain of middlewares
-        $next = function(ServerRequestInterface $request, ResponseInterface $response) use ($next, $run) {
-            return call_user_func($run, $request, $response, $next);
-        };
-
-        #Build middlewares call chain, so that the last added was executed in first place
-        foreach ($this->middlewares as $middleware) {
-            $next = function(ServerRequestInterface $request, ResponseInterface $response) use ($next, $middleware) {
-                return $middleware($request, $response, $next);
+        // Turn the stack into a call chain
+        foreach ($stack as $handle) {
+            $next = function(ServerRequestInterface $request, ResponseInterface $response) use ($handle, $next) {
+                return $handle($request, $response, $next);
             };
         }
 
@@ -157,33 +159,32 @@ class Router
      */
     public function run(ServerRequestInterface $request, ResponseInterface $response, $next = null)
     {
-        $glob = new Glob($this->routes);
-        $route = $glob->getRoute($request);
+        $route = $this->routes->getRoute($request);
         
-        if (!$route) return $this->notFound($response);
-
-        $request->withAttribute('route', $route);        
+        if (!$route) {
+            return $this->notFound($request, $response);
+        }
+        
+        $requestWithRoute = $request->withAttribute('route', $route);
+        
         $factory = $this->getFactory();
         $runner = $factory($route);
 
-        return $runner($request, $response, $next);
+        return $runner($requestWithRoute, $response, $next);
     }
 
     /**
      * Return 'Not Found' response
      *
+     * @param ServerRequestInterface $request
      * @param ResponseInterface      $response
      * @return ResponseInterface 
      */
-    protected function notFound(ResponseInterface $response)
+    protected function notFound(ServerRequestInterface $request, ResponseInterface $response)
     {
-        $message = 'Not Found';            
+        $notFound = $response->withStatus(404);
+        $notFound->getBody()->write('Not Found');
 
-        $body = $response->getBody();        
-        $body->rewind();
-        $body->write($message);
-
-        return $response->withStatus(404, $message)->withBody($body);
+        return $notFound;
     }
 }
-

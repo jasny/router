@@ -29,6 +29,6 @@ class Callback extends Runner
             throw new \RuntimeException("'fn' property of route shoud be a callable");
         }
 
-        return call_user_func($callback, $request, $response);
+        return $callback($request, $response);
     }
 }

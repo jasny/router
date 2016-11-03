@@ -7,12 +7,33 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * Description of Controller
- *
- * @author arnold
+ * Run a route using a controller
  */
 class Controller extends Runner
 {
+    /**
+     * Get class name from controller name
+     * 
+     * @param string $name
+     * @return string
+     */
+    protected function getClass($name)
+    {
+        return strstr($name, '-') ? \Jasny\studlycase($name) : $name;
+    }
+    
+    /**
+     * Instantiate a controller object
+     * @codeCoverageIgnore
+     * 
+     * @param string $class
+     * @return callable|object
+     */
+    protected function instantiate($class)
+    {
+        return new $class();
+    }
+    
     /**
      * Route to a controller
      * 
@@ -23,18 +44,20 @@ class Controller extends Runner
     public function run(ServerRequestInterface $request, ResponseInterface $response)
     {
         $route = $request->getAttribute('route');        
-        $class = !empty($route->controller) ? $route->controller : null;
+        $name = !empty($route->controller) ? $route->controller : null;
 
+        $class = $this->getClass($name);
+        
         if (!class_exists($class)) {
             throw new \RuntimeException("Can not route to controller '$class': class not exists");
         }
-
+        
         if (!method_exists($class, '__invoke')) {
             throw new \RuntimeException("Can not route to controller '$class': class does not have '__invoke' method");   
         }
-
-        $controller = new $class($route);
-
+        
+        $controller = $this->instantiate($class);
+        
         return $controller($request, $response);
     }
 }

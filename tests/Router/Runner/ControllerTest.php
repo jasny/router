@@ -1,140 +1,80 @@
 <?php
 
+namespace Jasny\Router;
+
 use Jasny\Router\Route;
-use Jasny\Router\Runner\Controller;
+use Jasny\Router\Runner;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
-class ControllerTest extends PHPUnit_Framework_TestCase
+use Jasny\Router\TestHelpers;
+
+/**
+ * @covers Jasny\Router\Runner\Controller;
+ */
+class ControllerTest extends \PHPUnit_Framework_TestCase
 {
-    /**
-     * Tmp scripts
-     * @var array
-     **/
-    public static $files = [];
-
-    /**
-     * Test creating Controller runner
-     *
-     * @dataProvider phpScriptProvider
-     * @param Route $route 
-     * @param boolean $positive
-     */
-    public function testPhpScript($route, $positive)
-    {   
-        $runner = new Controller($route);
-
+    use TestHelpers;
+    
+    public function testInvoke()
+    {
         $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
-        $request->expects($this->once())->method('getAttribute')->with($this->equalTo('route'))->will($this->returnValue($route));
+        $finalResponse = $this->createMock(ResponseInterface::class);
 
-        if (!$positive) $this->expectException(\RuntimeException::class);
-        $result = $runner->run($request, $response);
+        $controller = $this->createCallbackMock($this->once(), [$request, $response], $finalResponse);
+        $class = get_class($controller);
+        
+        $route = $this->createMock(Route::class);
+        $route->controller = $class;
+        
+        $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
+        
+        $runner = $this->getMockBuilder(Runner\Controller::class)->setMethods(['instantiate'])->getMock();
+        $runner->expects($this->once())->method('instantiate')->with($class)->willReturn($controller);
 
-        $this->assertEquals($request, $result['request'], "Request object was not passed correctly to result");
-        $this->assertEquals($response, $result['response'], "Response object was not passed correctly to result");
-    }
-
-    /**
-     * Provide data for testing 'create' method
-     */
-    public function phpScriptProvider()
-    {
-        foreach (['noInvoke', 'withInvoke'] as $type) {
-            list($class, $path) = static::createTmpScript($type);
-            static::$files[$type] = compact('class', 'path');
-        }
-
-        return [
-            [Route::create(['test' => 'test']), false],
-            [Route::create(['fn' => 'testFunction', 'value' => 'test']), false],
-            [Route::create(['controller' => 'TestController', 'value' => 'test']), false],
-            [Route::create(['controller' => '', 'value' => 'test']), false],
-            [Route::create(['controller' => static::$files['noInvoke']['class'], 'path' => static::$files['noInvoke']['path']]), false],
-            [Route::create(['controller' => static::$files['withInvoke']['class'], 'path' => static::$files['withInvoke']['path']]), true],
-        ];
-    }
-
-    /**
-     * Delete tmp test scripts
-     */
-    public static function tearDownAfterClass()
-    {
-        foreach (static::$files as $path) {
-            unlink($path['path']);
-        }
-    }
-
-    /**
-     * Create single tmp script file for testing
-     *
-     * @param string $type ('returnTrue', 'returnNotTrue')
-     * @return string $path
-     */
-    public static function createTmpScript($type)
-    {
-        $dir = rtrim(sys_get_temp_dir(), '/');        
-
-        do {
-            $name = static::getRandomString() . '-test-script.php';
-            $path = $dir . '/' . $name;
-
-            if (!file_exists($path)) break;
-        } while (true);
-
-        if ($type === 'noInvoke') {
-            $class = 'RunnerTestConrtollerInvalid';
-            $content =
-<<<CONTENT
-<?php
-
-class $class {    
-    public \$route = null;
-
-    public function __construct(\$route) 
-    {
-        \$this->route = \$route;    
-    }
-}
-CONTENT;
-        } else {
-            $class = 'RunnerTestConrtoller';
-            $content = 
-<<<CONTENT
-<?php
-
-class $class {    
-    public \$route = null;
-    
-    public function __construct(\$route) 
-    {
-        \$this->route = \$route;    
+        $result = $runner($request, $response);
+        
+        $this->assertSame($finalResponse, $result);
     }
     
-    public function __invoke(Psr\Http\Message\ServerRequestInterface \$request, Psr\Http\Message\ResponseInterface \$response)
-    {
-        return ['request' => \$request, 'response' => \$response];
-    }
-}
-CONTENT;
-        }
-
-        $bytes = file_put_contents($path, $content);
-        static::assertTrue((int)$bytes > 0);
-
-        require_once $path;
-
-        return [$class, $path];
-    }
-
     /**
-     * Get random string of given length (no more then length of md5 hash)
-     *
-     * @param int $length
-     * @return string
+     * @expectedException RuntimeException
+     * @expectedExceptionMessage Can not route to controller 'FooBarZoo': class not exists
      */
-    public static function getRandomString($length = 10)
-    {        
-        return substr(md5(microtime(true) * mt_rand()), 0, $length);
+    public function testInvalidClass()
+    {
+        $request = $this->createMock(ServerRequestInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
+        
+        $route = $this->createMock(Route::class);
+        $route->controller = 'foo-bar-zoo';
+        
+        $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
+        
+        $runner = $this->getMockBuilder(Runner\Controller::class)->setMethods(['instantiate'])->getMock();
+        $runner->expects($this->never())->method('instantiate');
+
+        $runner($request, $response);
+    }
+    
+    /**
+     * @expectedException RuntimeException
+     * @expectedExceptionMessage Can not route to controller 'StdClass': class does not have '__invoke' method
+     */
+    public function testInvokeNotCallable()
+    {
+        $request = $this->createMock(ServerRequestInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
+        
+        $route = $this->createMock(Route::class);
+        $route->controller = 'std-class';
+        
+        $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
+        
+        $runner = $this->getMockBuilder(Runner\Controller::class)->setMethods(['instantiate'])->getMock();
+        $runner->expects($this->never())->method('instantiate');
+
+        $runner($request, $response);
     }
 }

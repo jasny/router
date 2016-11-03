@@ -1,64 +1,73 @@
 <?php
 
+namespace Jasny\Router;
+
 use Jasny\Router\Route;
 use Jasny\Router\Runner\Callback;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
-class CallbackTest extends PHPUnit_Framework_TestCase
+use Jasny\Router\TestHelpers;
+
+/**
+ * @covers Jasny\Router\Runner\Callback
+ */
+class CallbackTest extends \PHPUnit_Framework_TestCase
 {
+    use TestHelpers;
+    
     /**
      * Test creating Callback runner
-     *
-     * @dataProvider callbackProvider
-     * @param Route $route 
-     * @param boolean $positive
      */
-    public function testCallback($route, $positive)
+    public function testCallback()
     {
-        $runner = new Callback($route);
-
         $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
-        $request->expects($this->once())->method('getAttribute')->with($this->equalTo('route'))->will($this->returnValue($route));
-
-        if (!$positive) $this->expectException(\RuntimeException::class);
-        $result = $runner->run($request, $response);
-
-        if (!$positive) return;
-
-        $this->assertEquals($request, $result['request'], "Request object was not passed correctly to result");
-        $this->assertEquals($response, $result['response'], "Response object was not passed correctly to result");
+        $finalResponse = $this->createMock(ResponseInterface::class);
+        
+        $route = $this->createMock(Route::class);
+        $route->fn = $this->createCallbackMock($this->once(), [$request, $response], $finalResponse);
+        
+        $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
+            
+        $runner = new Callback($route);
+        $result = $runner($request, $response);
+        
+        $this->assertSame($finalResponse, $result);
     }
-
-
+    
     /**
-     * Provide data fpr testing 'create' method
+     * @expectedException RuntimeException
+     * @expectedExceptionMessage 'fn' property of route shoud be a callable
      */
-    public function callbackProvider()
+    public function testNoCallback()
     {
-        $callback = function($request, $response) {
-            return ['request' => $request, 'response' => $response];
-        };
-
-        return [
-            [Route::create(['fn' => $callback, 'value' => 'test']), true],
-            [Route::create(['fn' => [$this, 'getCallback'], 'value' => 'test']), true],
-            [Route::create(['controller' => 'TestController', 'value' => 'test']), false],
-            [Route::create(['file' => 'some_file.php', 'value' => 'test']), false],
-            [Route::create(['test' => 'test']), false],
-        ];
+        $request = $this->createMock(ServerRequestInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
+        
+        $route = $this->createMock(Route::class);
+        
+        $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
+            
+        $runner = new Callback($route);
+        $runner($request, $response);
     }
-
+    
     /**
-     * Testable callback for creating Route
-     *
-     * @param ServerRequestInterface  $request
-     * @param ResponseInterface $response
-     * @return array
+     * @expectedException RuntimeException
+     * @expectedExceptionMessage 'fn' property of route shoud be a callable
      */
-    public function getCallback($request, $response) 
+    public function testInvalidCallback()
     {
-        return ['request' => $request, 'response' => $response];
+        $request = $this->createMock(ServerRequestInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
+        
+        $route = $this->createMock(Route::class);
+        $route->fn = 'foo bar zoo';
+        
+        $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
+            
+        $runner = new Callback($route);
+        $runner($request, $response);
     }
 }
