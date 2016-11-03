@@ -31,10 +31,6 @@ trait UrlParsing
             $url = rtrim($url, '/');
         }
         
-        if (substr($url, 0, 2) == '/:') {
-            $url = substr($url, 2);
-        }
-        
         return $url;
     }
 }

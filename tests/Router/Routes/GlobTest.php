@@ -3,12 +3,12 @@
 namespace Jasny\Router\Routes;
 
 use Jasny\Router\Routes\Glob;
+use Jasny\Router\Route;
 use Psr\Http\Message\ServerRequestInterface;
 
 use ArrayObject;
 use BadMethodCallException;
 use InvalidArgumentException;
-use AppendIterator;
 
 class GlobTest extends \PHPUnit_Framework_TestCase
 {
@@ -17,63 +17,55 @@ class GlobTest extends \PHPUnit_Framework_TestCase
      */
     public function testConstructor()
     {   
-        #Test empty constructor
         $glob = new Glob();
         $this->assertInstanceOf('ArrayObject', $glob, "Should be an instance of 'ArrayObject'");
         $this->assertEquals(0, $glob->count(), "Default count is not empty");
         $this->assertEquals(0, $glob->getFlags(), "Default flags are not empty");
         $this->assertEquals('ArrayIterator', $glob->getIteratorClass(), "Default iterator class is not correct");
 
-        #Actual check for public values
+        // Actual check for available routes
         $count = 0;
         foreach ($glob as $value) {
             $count++;
             break;
         }
 
-        $this->assertEquals(0, $count);        
+        $this->assertEquals(0, $count);
     }
     
     public function testConstructorWithArguments()
     {
-        #Test with params
         $values = [
             '/foo/bar' => ['controller' => 'value1'],
             '/foo/*' => ['fn' => 'value3'],
             '/foo/*/bar' => ['file' => 'value5'],
         ];
         
-        $glob = new Glob($values, ArrayObject::ARRAY_AS_PROPS, AppendIterator::class);
+        $glob = new Glob($values, ArrayObject::ARRAY_AS_PROPS);
 
-        $this->assertEquals(count($values), $glob->count(), "Routes count is not match");
+        $this->assertCount(3, $glob, "Routes count do not match");
         $this->assertEquals(ArrayObject::ARRAY_AS_PROPS, $glob->getFlags(), "Flags are not correct");
-        $this->assertEquals(AppendIterator::class, $glob->getIteratorClass(), "Iterator class is not correct");
 
-        foreach ($values as $pattern => $options) {
-            $this->assertTrue($glob->offsetExists($pattern), "Key '$pattern' is missing");
+        foreach ($glob as $pattern => $route) {
+            $this->assertInstanceof(Route::class, $route);
+            $this->assertArrayHasKey($pattern, $values);
+            $this->assertArraysEqual($values[$pattern], (array)$route);
         }
+        
+        return $glob;
     }
-
+    
     /**
-     * Test ArrayObject::exchangeArray method
+     * @depends testConstructorWithArguments
      * 
-     * @dataProvider exchangeArrayProvider
+     * @param Glob $original
      */
-    public function testExchangeArray($set, $reset)
+    public function testConstructorTraversable(Glob $original)
     {
-        $glob = new Glob($set);
-        $old = $glob->exchangeArray($reset); 
-
-        $this->assertEquals(count($set), count($old), "Old routes count is not match");
-        $this->assertEquals(count($reset), $glob->count(), "Routes count is not match");
-
-        foreach ($reset as $pattern => $options) {
-            $this->assertTrue($glob->offsetExists($pattern), "Key is missing");    
-        }
-        foreach ($set as $pattern => $options) {
-            $this->assertTrue(!empty($old[$pattern]), "Old key is missing");                
-            $this->assertFalse($glob->offsetExists($pattern), "Key exists, but should not");
-        }
+        $glob = new Glob($original);
+        
+        $this->assertCount(3, $glob, "Routes count do not match");
+        $this->assertEquals($original->getArrayCopy(), $glob->getArrayCopy());
     }
 
     /**
@@ -98,29 +90,27 @@ class GlobTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * Test ArrayObject::offsetSet method
+     * Test ArrayObject::exchangeArray method
      * 
-     * @dataProvider offsetSetProvider
-     * @param string $pattern 
-     * @param array $options 
-     * @param string $exception 
+     * @dataProvider exchangeArrayProvider
      */
-    public function testOffsetSet($pattern, $options, $exception)
+    public function testExchangeArray($set, $reset)
     {
-        if ($exception) $this->expectException($exception);
+        $glob = new Glob($set);
+        $old = $glob->exchangeArray($reset); 
 
-        $glob = new Glob();
-        $glob->offsetSet($pattern, $options);
+        $this->assertEquals(count($set), count($old), "Old routes count do not match");
+        $this->assertEquals(count($reset), $glob->count(), "Routes count do not match");
 
-        if ($exception) return;
-
-        $this->assertEquals(1, $glob->count(), "Routes count is not match");
-        $this->assertTrue($glob->offsetExists($pattern), "Key is missing");
-        
-        #Verify that value was set correctly
-        $value = (array)$glob->offsetGet($pattern);
-        $this->assertEmpty(array_diff($options, $value), "Route was not set correct");
+        foreach ($reset as $pattern => $options) {
+            $this->assertTrue($glob->offsetExists($pattern), "Key is missing");    
+        }
+        foreach ($set as $pattern => $options) {
+            $this->assertTrue(!empty($old[$pattern]), "Old key is missing");                
+            $this->assertFalse($glob->offsetExists($pattern), "Key exists, but should not");
+        }
     }
+
 
     /**
      * Provide data for testOffsetSet()
@@ -128,13 +118,54 @@ class GlobTest extends \PHPUnit_Framework_TestCase
     public function offsetSetProvider()
     {
         return [
-            ['/foo/*', ['controller' => 'bar'], ''],
-            ['/foo/*', ['fn' => 'bar'], ''],
-            ['/foo/*', ['file' => 'bar'], ''],
-            ['', ['controller' => 'bar'], BadMethodCallException::class],
-            ['foo', 'bar', InvalidArgumentException::class],
-            ['', '', BadMethodCallException::class]
+            ['/foo/*', ['controller' => 'bar']],
+            ['/foo/*', ['fn' => 'bar']],
+            ['/foo/*', ['file' => 'bar']],
+            ['/foo/*', $this->getMockBuilder(Route::class)->setConstructorArgs([['controller' => 'bar']])->getMock()]
         ];
+    }
+    
+    /**
+     * Test ArrayObject::offsetSet method
+     * @dataProvider offsetSetProvider
+     * 
+     * @param string $pattern 
+     * @param array $options 
+     */
+    public function testOffsetSet($pattern, $options)
+    {
+        $glob = new Glob();
+        $glob[$pattern] = $options;
+
+        $this->assertCount(1, $glob);
+        $this->assertTrue(isset($glob[$pattern]));
+        
+        $route = $glob[$pattern];
+        $this->assertInstanceOf(Route::class, $route);
+        
+        if ($options instanceof Route) {
+            $this->assertSame($options, $route);
+        } else {
+            $this->assertEquals([], array_diff($options, (array)$route));
+        }
+    }
+    
+    /**
+     * @expectedException BadMethodCallException
+     */
+    public function testOffsetSetInvalidPattern()
+    {
+        $glob = new Glob();
+        $glob[''] = ['controller' => 'bar'];
+    }
+    
+    /**
+     * @expectedException InvalidArgumentException
+     */
+    public function testOffsetSetInvalidRoute()
+    {
+        $glob = new Glob();
+        $glob['/foo'] = 'bar';
     }
 
     /**
@@ -146,22 +177,6 @@ class GlobTest extends \PHPUnit_Framework_TestCase
     {
         $glob = new Glob();
         $glob->append(['controller' => 'bar']);
-    }
-
-    /**
-     * Test matching of url pattern to given uri
-     *
-     * @dataProvider fnMatchProvider
-     * @param string $pattern 
-     * @param string $uri 
-     * @param boolean $positive 
-     */
-    public function testFnMatch($pattern, $uri, $positive)
-    {   
-        $glob = new Glob();
-
-        $this->assertEquals($positive, $glob->fnmatch($pattern, $uri),
-            "Pattern and uri should " . ($positive ? "" : "not") . " match");
     }
 
     /**
@@ -205,12 +220,28 @@ class GlobTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * Testing getting route and it's existense
+     * Test matching of url pattern to given uri
+     * @dataProvider fnMatchProvider
      * 
+     * @param string $pattern 
+     * @param string $uri 
+     * @param boolean $positive 
+     */
+    public function testFnMatch($pattern, $uri, $positive)
+    {   
+        $glob = new Glob();
+
+        $this->assertEquals($positive, $glob->fnmatch($pattern, $uri),
+            "Pattern and uri should " . ($positive ? "" : "not") . " match");
+    }
+
+    /**
+     * Testing getting route and it's existense
      * @dataProvider getHasRouteProvider
-     * @param string $uri         Uri of ServerRequest
-     * @param string $method      Query method name
-     * @param boolean $positive   If the test should be positive or negative
+     * 
+     * @param string  $uri       Uri of ServerRequest
+     * @param string  $method    Query method name
+     * @param boolean $positive  If the test should be positive or negative
      */
     public function testGetHasRoute($uri, $method, $positive)
     {
@@ -241,7 +272,7 @@ class GlobTest extends \PHPUnit_Framework_TestCase
 
         $this->assertTrue($exist, "Route not exists");
         $this->assertTrue((bool)$match, "Found no match of uri with patterns");
-        $this->assertEquals($values[$match]['controller'], $route['controller'], "False route obtained");
+        $this->assertEquals($values[$match]['controller'], $route->controller, "False route obtained");
     }
 
     /**
@@ -306,34 +337,7 @@ class GlobTest extends \PHPUnit_Framework_TestCase
         $request = $this->getServerRequest($uri);        
         $route = $glob->getRoute($request);
 
-        $this->assertEquals($route['check'], $values[$uri]['check'], "Option value is not correct");
-    }
-
-    /**
-     * Test binding single url part to route option
-     * @dataProvider bindVarSingleUrlPartProvider
-     * @param string $patter 
-     * @param string $uri 
-     * @param array $options   Route options
-     */
-    public function testBindVarSingleUrlPart($pattern, $uri, $options)
-    {
-        $values = [$pattern => $options];
-
-        $glob = new Glob($values);
-        $request = $this->getServerRequest($uri);        
-        $route = $glob->getRoute($request);
-
-        $this->assertTrue((bool)$route, "Route not found");
-
-        if (!empty($options['check'])) {
-            $this->assertEquals('test', $route['check'], "Single pocket did not match");            
-        } elseif(empty($options['check2'])) {
-            $this->assertEquals('test1/test2', $route['check1'], "Single compound pocket did not match");
-        } else {
-            $this->assertEquals('test1', $route['check1'], "First of two pockets did not match");
-            $this->assertEquals('test2', $route['check2'], "Second of two pockets did not match");
-        }
+        $this->assertEquals($values[$uri]['check'], $route->check);
     }
 
     /**
@@ -342,64 +346,166 @@ class GlobTest extends \PHPUnit_Framework_TestCase
     public function bindVarSingleUrlPartProvider()
     {
         return [
-            ['/*', '/test', ['controller' => 'value', 'check' => '$1']],
-            ['/foo/*/bar', '/foo/test/bar', ['controller' => 'value', 'check' => '$2']],
-            ['/foo/bar/*', '/foo/bar/test', ['controller' => 'value', 'check' => '$3']],
-            ['/foo/bar/*/zet/*', '/foo/bar/test1/zet/test2', ['controller' => 'value', 'check1' => '$3', 'check2' => '$5']],
-            ['/foo/bar/*/zet/*', '/foo/bar/test1/zet/test2', ['controller' => 'value', 'check1' => '~$3~/~$5~']]
+            ['/*', '/test', ['check' => '$1'], 'test'],
+            ['/', '/', ['check' => '$1|test'], 'test'],
+            ['/foo/*/bar', '/foo/test/bar', ['check' => '$2'], 'test'],
+            ['/foo/bar/*', '/foo/bar/test', ['check' => '$3'], 'test'],
+            ['/foo/bar/*/zet/*', '/foo/bar/test1/zet/test2', ['check' => '$3', 'checkB' => '$5'], 'test1', 'test2'],
+            ['/foo/bar/*/zet/*', '/foo/bar/test1/zet/test2', ['check' => '~$3~/~$5~'], 'test1/test2'],
+            ['/', '/', ['check' => '$foo'], null]
         ];
     }
 
     /**
-     * Test binding multyple url parts to route option
+     * Test binding single url part to route option
+     * @dataProvider bindVarSingleUrlPartProvider
      * 
-     * @dataProvider bindVarMultipleUrlPartsProvider
+     * @param string $pattern
      * @param string $uri 
-     * @param array $options     Route options
-     * @param boolean $positive  
-     * @param string $exception 
+     * @param array  $options   Route options
+     * @param string $check     Expected value for `check`
+     * @param string $checkB    Expected value for `checkB`
      */
-    public function testBindVarMultipleUrlParts($uri, $options, $positive, $exception)
+    public function testBindVarSingleUrlPart($pattern, $uri, $options, $check, $checkB = null)
     {
-        if ($exception) $this->expectException(InvalidArgumentException::class);
+        $values = [$pattern => $options];
 
-        $values = [$uri => $options];
         $glob = new Glob($values);
         $request = $this->getServerRequest($uri);        
         $route = $glob->getRoute($request);
 
-        if ($exception) return;
+        $this->assertNotNull($route, "Route not found");
+        $this->assertInstanceOf(Route::class, $route);
 
-        $values = explode('/', trim($uri, '/'));
-        $this->assertTrue((bool)$route, "Route not found");
-
-        $positive ?
-            $this->assertArraysEqual($values, $route['check'], "Multyple url parts are not picked correctly") :
-            $this->assertEmpty($route['check'], "Multyple parts element should be empty");
-
-        if (!empty($options['check2'])) {
-            array_shift($values);
-            $this->assertArraysEqual($values, $route['check2'], "Secondary multyple url parts are not picked correctly");
+        $this->assertEquals($check, $route->check);
+        
+        if (isset($checkB)) {
+            $this->assertEquals($checkB, $route->checkB);
         }
     }
+    
+    public function testBindVarWithObject()
+    {
+        $object = new \Exception(); // Could be anything, just not stdClass
+        $glob = new Glob(['/' => ['object' => $object]]);
+        
+        $request = $this->getServerRequest('/');        
+        $route = $glob->getRoute($request);
 
+        $this->assertNotNull($route, "Route not found");
+        $this->assertInstanceOf(Route::class, $route);
+        
+        $this->assertSame($object, $route->object);
+    }
+
+    public function bindVarWithSubProvider()
+    {
+        return [
+            [['group' => ['check' => '$1']], 'array'],
+            [['group' => (object)['check' => '$1']], 'object'],
+            [['group' => ['sub' => (object)['check' => '$1']]], 'array', 'object'],
+            [['group' => (object)['sub' => ['check' => '$1']]], 'object', 'array']
+        ];
+    }
+    
+    /**
+     * @dataProvider bindVarWithSubProvider
+     * 
+     * @param array  $options
+     * @param string $type
+     * @param string $subtype
+     */
+    public function testBindVarWithSub(array $options, $type, $subtype = null)
+    {
+        $glob = new Glob(['/*' => $options]);
+        
+        $request = $this->getServerRequest('/test');        
+        $route = $glob->getRoute($request);
+
+        $this->assertNotNull($route, "Route not found");
+        $this->assertInstanceOf(Route::class, $route);
+        
+        $this->assertInternalType($type, $route->group);
+        
+        $group = (array)$route->group;
+        
+        if (isset($subtype)) {
+            $this->assertArrayHasKey('sub', $group);
+            $this->assertInternalType($subtype, $group['sub']);
+            
+            $group = (array)$group['sub'];
+        }
+        
+        $this->assertEquals($group, ['check' => 'test']);
+    }
+    
+    
     /**
      * Provide uri's and corresponding patterns for testBindVarMultipleUrlParts()
      */
     public function bindVarMultipleUrlPartsProvider()
     {
         return [
-            ['/foo', ['controller' => 'value', 'check' => '$1...'], false, InvalidArgumentException::class],
-            ['/', ['controller' => 'value', 'check' => ['$1...']], false, ''],
-            ['/foo', ['controller' => 'value', 'check' => ['$1...']], true, ''],
-            ['/foo/bar', ['controller' => 'value', 'check' => ['$1...'], 'check2' => ['$2...']], true, '']
+            ['/foo', ['check' => '$1...'], false, InvalidArgumentException::class],
+            ['/', ['check' => ['$1...']], false],
+            ['/foo', ['check' => ['$1...']], true],
+            ['/foo/bar', ['check' => ['$1...'], 'checkB' => ['$2...']],
+                InvalidArgumentException::class]
+        ];
+    }
+
+    /**
+     * Test binding multyple url parts to route option
+     * @dataProvider bindVarMultipleUrlPartsProvider
+     * 
+     * @param string  $uri 
+     * @param array   $options     Route options
+     * @param boolean $positive
+     * @param string  $exception
+     */
+    public function testBindVarMultipleUrlParts($uri, $options, $positive, $exception = false)
+    {
+        if ($exception) {
+            $this->expectException($exception);
+        }
+        
+        $glob = new Glob([$uri => $options]);
+        $request = $this->getServerRequest($uri);        
+        $route = $glob->getRoute($request);
+
+        if ($exception) return;
+
+        $this->assertNotNull($route, "Route not found");
+        $this->assertInstanceOf(Route::class, $route);
+
+        $values = explode('/', trim($uri, '/'));
+        
+        $positive ?
+            $this->assertArraysEqual($values, $route->check, "Multyple url parts are not picked correctly") :
+            $this->assertEmpty($route->check, "Multyple parts element should be empty");
+
+        if (!empty($options->checkB)) {
+            array_shift($values);
+            $this->assertArraysEqual($values, $route->checkB, "Secondary multyple url parts are not picked correctly");
+        }
+    }
+
+    /**
+     * Provide uri's and corresponding patterns for testBindVarMultipleUrlParts()
+     */
+    public function bindVarSuperGlobalProvider()
+    {
+        return [
+            ['/foo', ['check' => '$_GET[check]'], 'get'],
+            ['/foo', ['check' => '$_POST[check]'], 'post'],
+            ['/foo', ['check' => '$_COOKIE[check]'], 'cookie']
         ];
     }
 
     /**
      * Test binding element of superglobal array to route option
-     *
      * @dataProvider bindVarSuperGlobalProvider
+     * 
      * @param string $uri 
      * @param array $options 
      * @param string $type    ('get', 'post', 'cookie')
@@ -411,19 +517,7 @@ class GlobTest extends \PHPUnit_Framework_TestCase
         $request = $this->getServerRequest($uri, 'GET', [$type => $test]);
         $route = $glob->getRoute($request);
 
-        $this->assertEquals($test['check'], $route['check'], "Did not obtaine value for superglobal '$type'");
-    }
-
-    /**
-     * Provide uri's and corresponding patterns for testBindVarMultipleUrlParts()
-     */
-    public function bindVarSuperGlobalProvider()
-    {
-        return [
-            ['/foo', ['controller' => 'value', 'check' => '$_GET[check]'], 'get'],
-            ['/foo', ['controller' => 'value', 'check' => '$_POST[check]'], 'post'],
-            ['/foo', ['controller' => 'value', 'check' => '$_COOKIE[check]'], 'cookie']
-        ];
+        $this->assertEquals($test['check'], $route->check, "Did not obtaine value for superglobal '$type'");
     }
 
     /**
@@ -433,11 +527,14 @@ class GlobTest extends \PHPUnit_Framework_TestCase
     {   
         $uri = '/foo/bar';
         $test = 'test_header_value';
-        $glob = new Glob([$uri => ['controller' => 'value', 'check' => '$HTTP_REFERER']]);
+        
+        $glob = new Glob([$uri => ['check' => '$HTTP_REFERER']]);
         $request = $this->getServerRequest($uri, 'GET', [], $test);
+        
         $route = $glob->getRoute($request);
+        $this->assertNotNull($route, "Route not found");
 
-        $this->assertEquals($test, $route['check'], "Did not obtaine value for header");
+        $this->assertEquals($test, $route->check);
     }    
 
     /**
@@ -469,7 +566,7 @@ class GlobTest extends \PHPUnit_Framework_TestCase
      */
     public function assertArraysEqual(array $array1, array $array2)
     {
-        $this->assertEquals(count($array1), count($array2));
-        $this->assertEmpty(array_diff($array1, $array2));
+        $this->assertEmpty(array_diff($array2, $array1), 'Missing items');
+        $this->assertEmpty(array_diff($array1, $array2), 'Additional items');
     }
 }

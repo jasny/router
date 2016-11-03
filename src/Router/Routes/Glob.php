@@ -16,6 +16,18 @@ class Glob extends ArrayObject implements Routes
     use UrlParsing;
     
     /**
+     * Class constructor
+     * 
+     * @param Routes[]|array|\Traversable $input
+     * @param int                         $flags
+     */
+    public function __construct($input = [], $flags = 0)
+    {
+        $routes = $this->createRoutes($input);
+        parent::__construct($routes, $flags);
+    }
+    
+    /**
      * Create a route from an assisiative array or stdClass object
      * 
      * @param Route|\stdClass|array $value
@@ -35,14 +47,7 @@ class Glob extends ArrayObject implements Routes
             throw new \InvalidArgumentException("Unable to create a Route from value " . var_export($value, true));
         }
         
-        $route = Route::create($value);
-        
-        if (!isset($route)) {
-            throw new \InvalidArgumentException("Unable to create a Route from " . var_export($value, true) . ": "
-                . "neither 'controller', 'fn' or 'file' key is defined");
-        }
-        
-        return $route;
+        return Route::create($value);
     }
     
     /**

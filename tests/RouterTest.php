@@ -5,7 +5,7 @@ namespace Jasny\Router;
 use Jasny\Router;
 use Jasny\Router\Route;
 use Jasny\Router\Routes;
-use Jasny\Router\Runner\RunnerFactory;
+use Jasny\Router\RunnerFactory;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
