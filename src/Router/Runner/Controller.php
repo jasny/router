@@ -19,7 +19,7 @@ class Controller extends Runner
      */
     protected function getClass($name)
     {
-        return strstr($name, '-') ? \Jasny\studlycase($name) : $name;
+        return \Jasny\studlycase($name) . 'Controller';
     }
     
     /**

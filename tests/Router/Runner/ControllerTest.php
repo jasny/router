@@ -26,11 +26,12 @@ class ControllerTest extends \PHPUnit_Framework_TestCase
         $class = get_class($controller);
         
         $route = $this->createMock(Route::class);
-        $route->controller = $class;
+        $route->controller = 'foo';
         
         $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
         
-        $runner = $this->getMockBuilder(Runner\Controller::class)->setMethods(['instantiate'])->getMock();
+        $runner = $this->getMockBuilder(Runner\Controller::class)->setMethods(['instantiate', 'getClass'])->getMock();
+        $runner->expects($this->once())->method('getClass')->with('foo')->willReturn($class);
         $runner->expects($this->once())->method('instantiate')->with($class)->willReturn($controller);
 
         $result = $runner($request, $response);
@@ -40,7 +41,7 @@ class ControllerTest extends \PHPUnit_Framework_TestCase
     
     /**
      * @expectedException RuntimeException
-     * @expectedExceptionMessage Can not route to controller 'FooBarZoo': class not exists
+     * @expectedExceptionMessage Can not route to controller 'DoesNotExistsController': class not exists
      */
     public function testInvalidClass()
     {
@@ -48,7 +49,7 @@ class ControllerTest extends \PHPUnit_Framework_TestCase
         $response = $this->createMock(ResponseInterface::class);
         
         $route = $this->createMock(Route::class);
-        $route->controller = 'foo-bar-zoo';
+        $route->controller = 'does-not-exists';
         
         $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
         
@@ -60,7 +61,7 @@ class ControllerTest extends \PHPUnit_Framework_TestCase
     
     /**
      * @expectedException RuntimeException
-     * @expectedExceptionMessage Can not route to controller 'StdClass': class does not have '__invoke' method
+     * @expectedExceptionMessage Can not route to controller 'stdClass': class does not have '__invoke' method
      */
     public function testInvokeNotCallable()
     {
@@ -68,11 +69,12 @@ class ControllerTest extends \PHPUnit_Framework_TestCase
         $response = $this->createMock(ResponseInterface::class);
         
         $route = $this->createMock(Route::class);
-        $route->controller = 'std-class';
+        $route->controller = 'foo';
         
         $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
         
-        $runner = $this->getMockBuilder(Runner\Controller::class)->setMethods(['instantiate'])->getMock();
+        $runner = $this->getMockBuilder(Runner\Controller::class)->setMethods(['instantiate', 'getClass'])->getMock();
+        $runner->expects($this->once())->method('getClass')->with('foo')->willReturn('stdClass');
         $runner->expects($this->never())->method('instantiate');
 
         $runner($request, $response);
