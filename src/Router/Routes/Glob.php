@@ -194,7 +194,7 @@ class Glob extends ArrayObject implements Routes
         $route = $this->findRoute($url, $request->getMethod());
         
         if ($route) {
-            $route = $this->bind($route, $request, $this->splitUrl($url));
+            $route = $this->bind($route, $request, $this->splitUrl($url->getPath()));
         }
         
         return $route;
