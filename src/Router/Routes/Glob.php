@@ -8,6 +8,7 @@ use Jasny\Router\Routes;
 use Jasny\Router\Route;
 use Jasny\Router\Routes\RouteBinding;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\UriInterface;
 
 /**
  * Match URL against a shell wildcard pattern. 
@@ -126,32 +127,38 @@ class Glob extends ArrayObject implements Routes
         return (boolean)preg_match("~^{$regex}$~", $url);
     }
     
+    protected function splitRoutePattern($pattern)
+    {
+        if (strpos($pattern, ' ') !== false && preg_match_all('/\s+\+(\w+)\b|\s+\-(\w+)\b/', $pattern, $matches)) {
+            list($path) = preg_split('/\s+/', $pattern, 2);
+            $inc = isset($matches[1]) ? array_filter($matches[1]) : [];
+            $excl = isset($matches[2]) ? array_filter($matches[2]) : [];
+        } else {
+            $path = $pattern;
+            $inc = [];
+            $excl = [];
+        }
+        
+        return [$path, $inc, $excl];
+    }
+    
     /**
      * Find a matching route
      * 
-     * @param string $url
-     * @param string $method
+     * @param UriInterface $url
+     * @param string       $method
      * @return string
      */
-    protected function findRoute($url, $method = null)
+    protected function findRoute(UriInterface $url, $method = null)
     {
-        $url = $this->cleanUrl($url);
+        $urlPath = $this->cleanUrl($url->getPath());
         $ret = null;
         
         foreach ($this as $pattern => $route) {
-            if (strpos($pattern, ' ') !== false && preg_match_all('/\s+\+(\w+)\b|\s+\-(\w+)\b/', $pattern, $matches)) {
-                list($path) = preg_split('/\s+/', $pattern, 2);
-                $inc = isset($matches[1]) ? array_filter($matches[1]) : [];
-                $excl = isset($matches[2]) ? array_filter($matches[2]) : [];
-            } else {
-                $path = $pattern;
-                $inc = [];
-                $excl = [];
-            }
-            
+            list($path, $inc, $excl) = $this->splitRoutePattern($pattern);
             if ($path !== '/') $path = rtrim($path, '/');
             
-            if ($this->fnmatch($path, $url)) {
+            if ($this->fnmatch($path, $urlPath)) {
                 if (!$method || ((empty($inc) || in_array($method, $inc)) && !in_array($method, $excl))) {
                     $ret = $route;
                     break;

@@ -5,6 +5,7 @@ namespace Jasny\Router\Routes;
 use Jasny\Router\Routes\Glob;
 use Jasny\Router\Route;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\UriInterface;
 
 use ArrayObject;
 use BadMethodCallException;
@@ -278,7 +279,7 @@ class GlobTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue((bool)$match, "Found no match of uri with patterns");
         $this->assertEquals($values[$match]['controller'], $route->controller, "False route obtained");
     }
-
+    
     /**
      * Provide data for creating ServerRequestInterface objects
      */
@@ -338,8 +339,12 @@ class GlobTest extends \PHPUnit_Framework_TestCase
      */
     public function getServerRequest($uri, $method = 'GET', $globals = [], $header = '')
     {
+        $uriMock = $this->createMock(UriInterface::class);
+        $uriMock->method('__toString')->willReturn("http://www.example.com" . $uri);
+        $uriMock->method('getPath')->willReturn($uri);
+        
         $request = $this->createMock(ServerRequestInterface::class);
-        $request->method('getUri')->willReturn($uri);
+        $request->method('getUri')->willReturn($uriMock);
         $request->method('getMethod')->willReturn($method);
         $request->method('getQueryParams')->willReturn(isset($globals['get']) ? $globals['get'] : []);
         $request->method('getParsedBody')->willReturn(isset($globals['post']) ? $globals['post'] : []);
