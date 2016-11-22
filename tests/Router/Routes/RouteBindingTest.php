@@ -5,7 +5,7 @@ namespace Jasny\Router\Routes;
 use Jasny\Router\Routes\Glob;
 use Jasny\Router\Route;
 use Psr\Http\Message\ServerRequestInterface;
-
+use Psr\Http\Message\UriInterface;
 use InvalidArgumentException;
 
 /**
@@ -60,7 +60,8 @@ class RouteBindingTest extends \PHPUnit_Framework_TestCase
         $values = [$pattern => $options];
 
         $glob = new Glob($values);
-        $request = $this->getServerRequest($uri);        
+        $request = $this->getServerRequest($uri);
+        
         $route = $glob->getRoute($request);
 
         $this->assertNotNull($route, "Route not found");
@@ -237,8 +238,12 @@ class RouteBindingTest extends \PHPUnit_Framework_TestCase
      */
     public function getServerRequest($uri, $method = 'GET', $globals = [], $header = '')
     {
+        $uriMock = $this->createMock(UriInterface::class);
+        $uriMock->method('__toString')->willReturn("http://www.example.com" . $uri);
+        $uriMock->method('getPath')->willReturn($uri);
+        
         $request = $this->createMock(ServerRequestInterface::class);
-        $request->method('getUri')->willReturn($uri);
+        $request->method('getUri')->willReturn($uriMock);
         $request->method('getMethod')->willReturn($method);
         $request->method('getQueryParams')->willReturn(isset($globals['get']) ? $globals['get'] : []);
         $request->method('getParsedBody')->willReturn(isset($globals['post']) ? $globals['post'] : []);

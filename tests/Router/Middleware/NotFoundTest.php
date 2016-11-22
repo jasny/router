@@ -80,11 +80,11 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
         };
         
         return [
-            [$request, $response, 404, 405, $mockCallback()],
-            [$request, $response, 404, null, $mockCallback()],
-            [$request, $response, '200', '402', $mockCallback()],
-            [$request, $response, $mockCallback(), $mockCallback(), $mockCallback()],
-            [$request, $response, $mockCallback(), null, $mockCallback()]
+            [clone $request, clone $response, 404, 405, $mockCallback()],
+            [clone $request, clone $response, 404, null, $mockCallback()],
+            [clone $request, clone $response, '200', '402', $mockCallback()],
+            [clone $request, clone $response, $mockCallback(), $mockCallback(), $mockCallback()],
+            [clone $request, clone $response, $mockCallback(), null, $mockCallback()]
         ];
     }
 
