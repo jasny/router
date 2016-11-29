@@ -46,16 +46,23 @@ class ControllerTest extends \PHPUnit_Framework_TestCase
         $runnerNotExists->expects($this->never())->method('instantiate');
         
         $runnerNotCallable = $this->createPartialMock(Runner\Controller::class, ['instantiate', 'getClass']);
-        $runnerNotCallable->expects($this->once())->method('getClass')->with('foo-bar-zoo')->willReturn('stdClass');
+        $runnerNotCallable->expects($this->once())->method('getClass')->with('foo')->willReturn('stdClass');
         $runnerNotCallable->expects($this->never())->method('instantiate');
         
         return [
             [
                 $runnerNotExists,
+                'foo-bar-zoo',
                 "Can't route to controller 'FooBarZooController': class not exists"
             ],
             [
+                $runnerNotExists,
+                ['foo', 'bar', 'zoo'],
+                "Can't route to controller 'Foo\Bar\ZooController': class not exists"
+            ],
+            [
                 $runnerNotCallable,
+                'foo',
                 "Can't route to controller 'stdClass': class does not have '__invoke' method"
             ]
         ];
@@ -64,10 +71,11 @@ class ControllerTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider invalidProvider
      * 
-     * @param Runner $runner
-     * @param string $message
+     * @param Runner       $runner
+     * @param string|array $controller
+     * @param string       $message
      */
-    public function testInvokeInvalid(Runner $runner, $message)
+    public function testInvokeInvalid(Runner $runner, $controller, $message)
     {
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getProtocolVersion')->willReturn('1.1');
@@ -85,7 +93,7 @@ class ControllerTest extends \PHPUnit_Framework_TestCase
             ->willReturn($notFound);
         
         $route = $this->createMock(Route::class);
-        $route->controller = 'foo-bar-zoo';
+        $route->controller = $controller;
         
         $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
         

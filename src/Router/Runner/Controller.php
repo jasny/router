@@ -33,12 +33,12 @@ class Controller extends Runner
     /**
      * Get class name from controller name
      * 
-     * @param string $name
+     * @param string|array $name
      * @return string
      */
     protected function getClass($name)
     {
-        return \Jasny\studlycase($name) . 'Controller';
+        return join('\\', array_map('Jasny\studlycase', (array)$name)) . 'Controller';
     }
     
     /**
@@ -64,7 +64,7 @@ class Controller extends Runner
     {
         $route = $request->getAttribute('route');        
         $name = !empty($route->controller) ? $route->controller : null;
-
+        
         $class = $this->getClass($name);
         
         if (!class_exists($class)) {
