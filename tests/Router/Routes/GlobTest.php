@@ -72,7 +72,29 @@ class GlobTest extends \PHPUnit_Framework_TestCase
         $this->assertCount(3, $glob, "Routes count do not match");
         $this->assertEquals($original->getArrayCopy(), $glob->getArrayCopy());
     }
+    
+    public function testConstructorWithStdClass()
+    {
+        $values = (object)[
+            '/foo/bar' => ['controller' => 'value1'],
+            '/foo/*' => ['fn' => 'value3'],
+            '/foo/*/bar' => ['file' => 'value5'],
+        ];
+        
+        $glob = new Glob($values);
 
+        $this->assertCount(3, $glob, "Routes count do not match");
+
+        foreach ($glob as $pattern => $route) {
+            $this->assertInstanceof(Route::class, $route);
+            $this->assertObjectHasAttribute($pattern, $values);
+            $this->assertArraysEqual($values->$pattern, (array)$route);
+        }
+        
+        return $glob;
+    }
+    
+    
     /**
      * Provide data for testExchangeArray() test method
      */

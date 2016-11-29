@@ -21,7 +21,7 @@ class Glob extends ArrayObject implements Routes
     /**
      * Class constructor
      * 
-     * @param Routes[]|array|\Traversable $input
+     * @param Routes[]|array|stdClass|\Traversable $input
      * @param int                         $flags
      */
     public function __construct($input = [], $flags = 0)
@@ -56,13 +56,15 @@ class Glob extends ArrayObject implements Routes
     /**
      * Create routes from input
      * 
-     * @param Route[]|array|\Traversable $input
+     * @param Route[]|array|stdClass|\Traversable $input
      * @return type
      */
     protected function createRoutes($input)
     {
         if ($input instanceof \Traversable) {
             $input = iterator_to_array($input, true);
+        } elseif ($input instanceof \stdClass) {
+            $input = get_object_vars($input);
         }
 
         return array_map([$this, 'createRoute'], $input);
@@ -79,7 +81,7 @@ class Glob extends ArrayObject implements Routes
     /**
      * Replace all the routes
      * 
-     * @param Route[]|array|\Traversable $input
+     * @param Route[]|array|stdClass|\Traversable $input
      * @return array  the old routes
      */
     public function exchangeArray($input)
