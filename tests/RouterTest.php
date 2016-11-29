@@ -1,6 +1,6 @@
 <?php
 
-namespace Jasny\Router;
+namespace Jasny;
 
 use Jasny\Router;
 use Jasny\Router\Route;
@@ -9,6 +9,7 @@ use Jasny\Router\RunnerFactory;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
+use Psr\Http\Message\UriInterface;
 
 use Jasny\Router\TestHelpers;
 
@@ -169,7 +170,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         
         $this->assertSame([$middlewareOne, $middlewareTwo], $router->getMiddlewares());
     }
-
+    
     /**
      * @expectedException \InvalidArgumentException
      */
@@ -186,6 +187,9 @@ class RouterTest extends \PHPUnit_Framework_TestCase
     {
         $route = $this->createMock(Route::class);
 
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/');
+        
         $request = $this->createMock(ServerRequestInterface::class);
         $request->expects($this->once())->method('withAttribute')->with('route')->willReturn($request);
         $requestOne = $this->createMock(ServerRequestInterface::class);
@@ -197,15 +201,15 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $finalResponse = $this->createMock(ResponseInterface::class);
 
         $middlewareOne = $this->getMockBuilder(\stdClass::class)->setMethods(['__invoke'])->getMock();
-        $middlewareOne->expects($this->once())->method('__invoke')->id('one')
-            ->with($request, $response, $this->isInstanceOf(Closure::class))
+        $middlewareOne->expects($this->once())->method('__invoke')
+            ->with($request, $response, $this->isInstanceOf(\Closure::class))
             ->will($this->returnCallback(function($a, $b, $next) use ($requestOne, $responseOne) {
                 return $next($requestOne, $responseOne);
             }));
 
         $middlewareTwo = $this->getMockBuilder(\stdClass::class)->setMethods(['__invoke'])->getMock();
-        $middlewareTwo->expects($this->once())->method('__invoke')->id('two')->after('one')
-            ->with($request, $response, $this->isInstanceOf(Closure::class))
+        $middlewareTwo->expects($this->once())->method('__invoke')
+            ->with($request, $response, $this->isInstanceOf(\Closure::class))
             ->will($this->returnCallback(function($a, $b, $next) use ($requestTwo, $responseTwo) {
                 return $next($requestTwo, $responseTwo);
             }));
@@ -221,6 +225,52 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         
         $router->add($middlewareOne);
         $router->add($middlewareTwo);
+        
+        $result = $router($request, $response);
+        
+        $this->assertSame($finalResponse, $result);
+    }
+
+    /**
+     * Test executing router with middlewares chain (test only execution order)
+     */
+    public function testRunMiddlewaresByPath()
+    {
+        $route = $this->createMock(Route::class);
+
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn('/foo/bar');
+        
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->expects($this->once())->method('withAttribute')->with('route')->willReturn($request);
+        $request->method('getUri')->willReturn($uri);
+        $requestOne = $this->createMock(ServerRequestInterface::class);
+        
+        $response = $this->createMock(ResponseInterface::class);
+        $responseOne = $this->createMock(ResponseInterface::class);
+        $finalResponse = $this->createMock(ResponseInterface::class);
+        
+        $middlewareOne = $this->getMockBuilder(\stdClass::class)->setMethods(['__invoke'])->getMock();
+        $middlewareOne->expects($this->once())->method('__invoke')
+            ->with($request, $response, $this->isInstanceOf(\Closure::class))
+            ->will($this->returnCallback(function($a, $b, $next) use ($requestOne, $responseOne) {
+                return $next($requestOne, $responseOne);
+            }));
+        
+        $middlewareTwo = $this->getMockBuilder(\stdClass::class)->setMethods(['__invoke'])->getMock();
+        $middlewareTwo->expects($this->never())->method('__invoke');
+        
+        $runner = $this->createCallbackMock($this->once(), [$requestOne, $responseOne], $finalResponse);
+        $factory = $this->createCallbackMock($this->once(), [$route], $runner);
+
+        $routes = $this->createMock(Routes::class);
+        $routes->expects($this->once())->method('getRoute')->with($request)->willReturn($route);
+
+        $router = new Router($routes);
+        $router->setFactory($factory);
+        
+        $router->add('/foo', $middlewareOne);
+        $router->add('/zoo', $middlewareTwo);
         
         $result = $router($request, $response);
         
