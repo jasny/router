@@ -175,7 +175,7 @@ class Router
             return $this->run($request, $response, $next);
         }
         
-        $stack = array_merge([[$this, 'run']], $this->middlewares);
+        $stack = array_reverse(array_merge($this->middlewares, [[$this, 'run']]));
 
         // Turn the stack into a call chain
         foreach ($stack as $handle) {

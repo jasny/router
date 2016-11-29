@@ -181,9 +181,9 @@ class RouterTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * Test executing router with middlewares chain (test only execution order)
+     * Test executing router with middlewares chain
      */
-    public function testRunMiddlewares()
+    public function testRunWithMiddlewares()
     {
         $route = $this->createMock(Route::class);
 
@@ -191,9 +191,12 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $uri->method('getPath')->willReturn('/');
         
         $request = $this->createMock(ServerRequestInterface::class);
-        $request->expects($this->once())->method('withAttribute')->with('route')->willReturn($request);
+        $request->method('getUri')->willReturn($uri);
+        
         $requestOne = $this->createMock(ServerRequestInterface::class);
+        $requestOne->expects($this->never())->method('withAttribute');
         $requestTwo = $this->createMock(ServerRequestInterface::class);
+        $requestTwo->expects($this->once())->method('withAttribute')->with('route')->willReturn($requestTwo);
         
         $response = $this->createMock(ResponseInterface::class);
         $responseOne = $this->createMock(ResponseInterface::class);
@@ -225,16 +228,16 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         
         $router->add($middlewareOne);
         $router->add($middlewareTwo);
-        
+
         $result = $router($request, $response);
         
         $this->assertSame($finalResponse, $result);
     }
 
     /**
-     * Test executing router with middlewares chain (test only execution order)
+     * Test executing router with middlewares chain where each middleware is only applied for specific paths
      */
-    public function testRunMiddlewaresByPath()
+    public function testRunWithMiddlewaresByPath()
     {
         $route = $this->createMock(Route::class);
 
@@ -242,9 +245,11 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $uri->method('getPath')->willReturn('/foo/bar');
         
         $request = $this->createMock(ServerRequestInterface::class);
-        $request->expects($this->once())->method('withAttribute')->with('route')->willReturn($request);
         $request->method('getUri')->willReturn($uri);
+        
         $requestOne = $this->createMock(ServerRequestInterface::class);
+        $requestOne->expects($this->once())->method('withAttribute')->with('route')->willReturn($requestOne);
+        $requestOne->method('getUri')->willReturn($uri);
         
         $response = $this->createMock(ResponseInterface::class);
         $responseOne = $this->createMock(ResponseInterface::class);
