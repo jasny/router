@@ -27,4 +27,23 @@ trait TestHelpers
         
         return $callback;
     }
+    
+    /**
+     * Assert a non-fatal error
+     * 
+     * @param int    $type
+     * @param string $message
+     */
+    protected function assertLastError($type, $message)
+    {
+        $error = error_get_last();
+        
+        $expect = compact('type', 'message');
+        
+        if (is_array($error)) {
+            $error = array_intersect_key($error, $expect);
+        }
+        
+        $this->assertEquals($expect, $error);
+    }
 }
