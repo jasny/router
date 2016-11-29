@@ -141,10 +141,12 @@ class Router
             $uriPath = $request->getUri()->getPath();
 
             if ($uriPath === $path || strpos($uriPath, rtrim($path, '/') . '/') === 0) {
-                return $middleware($request, $response, $next);
+                $ret = $middleware($request, $response, $next);
             } else {
-                return $next($request, $response);
+                $ret = $next($request, $response);
             }
+            
+            return $ret;
         };
     }
     

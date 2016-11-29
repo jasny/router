@@ -10,6 +10,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UriInterface;
+use PHPUnit_Framework_MockObject_Matcher_InvokedCount as InvokedCount;
 
 use Jasny\Router\TestHelpers;
 
@@ -170,6 +171,50 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         
         $this->assertSame([$middlewareOne, $middlewareTwo], $router->getMiddlewares());
     }
+
+    public function middlewareWithPathProvider()
+    {
+        return [
+            ['/', $this->never(), $this->once(), 'zoo'],
+            ['/foo', $this->once(), $this->never(), 'foo'],
+            ['/foo/bar', $this->once(), $this->never(), 'foo'],
+            ['/zoo', $this->never(), $this->once(), 'zoo']
+        ];
+    }
+    
+    /**
+     * Test adding middleware action specifying a path
+     * @dataProvider middlewareWithPathProvider
+     * 
+     * @param string       $path
+     * @param InvokedCount $invokeMiddleware
+     * @param InvokedCount $invokeNext
+     * @param string       $expect
+     */
+    public function testAddMiddlewareWithPath($path, $invokeMiddleware, $invokeNext, $expect)
+    {
+        $uri = $this->createMock(UriInterface::class);
+        $uri->method('getPath')->willReturn($path);
+        
+        $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+        
+        $response = $this->createMock(ResponseInterface::class);
+        
+        $middleware = $this->createCallbackMock($invokeMiddleware, [$request, $response], 'foo');
+        $next = $this->createCallbackMock($invokeNext, [$request, $response], 'zoo');
+        
+        $router = new Router($this->createMock(Routes::class));
+        $router->add('/foo', $middleware);
+        
+        list($fn) = $router->getMiddlewares() + [null];
+        
+        $this->assertNotSame($middleware, $fn);
+        
+        $result = $fn($request, $response, $next);
+        
+        $this->assertEquals($expect, $result);
+    }
     
     /**
      * @expectedException \InvalidArgumentException
@@ -178,6 +223,28 @@ class RouterTest extends \PHPUnit_Framework_TestCase
     {
         $router = new Router($this->createMock(Routes::class));
         $router->add('foo bar zoo');
+    }
+    
+    /**
+     * @expectedException PHPUnit_Framework_Error
+     * @expectedException Middleware path 'foobar' doesn't start with a '/'
+     */
+    public function testAddNoticeWeirdPath()
+    {
+        $middleware = $this->createCallbackMock($this->never());
+        
+        $router = new Router($this->createMock(Routes::class));
+        $router->add('foobar', $middleware);
+    }
+    
+    public function testAddNoticeWeirdPathSkip()
+    {
+        $middleware = $this->createCallbackMock($this->never());
+        
+        $router = new Router($this->createMock(Routes::class));
+        @$router->add('foobar', $middleware);
+        
+        $this->assertCount(1, $router->getMiddlewares());
     }
 
     /**
