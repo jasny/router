@@ -78,6 +78,11 @@ class ControllerTest extends \PHPUnit_Framework_TestCase
                 'foo--bar-zoo',
                 "Can't route to controller 'Foo--barZooController': invalid classname"
             ],
+            [
+                null,
+                'Foo\Bar\zoo',
+                "Can't route to controller 'Foo\\\\bar\\\\zooController': invalid classname"
+            ]
         ];
     }
     

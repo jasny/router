@@ -75,7 +75,7 @@ class Controller extends Runner
     {
         return preg_replace_callback('/(?:^|(\w)-)(\w)/', function($match) {
             return $match[1] . strtoupper($match[2]);
-        }, strtolower($string));
+        }, strtolower(addcslashes($string, '\\')));
     }
     
     /**
