@@ -227,6 +227,8 @@ class GlobTest extends \PHPUnit_Framework_TestCase
             ['/foo[sad]/bar', '/food/bar', true],
             ['/foo/bar.{png,gif}', '/foo/bar.png', true],
             ['/foo/bar.{png,gif}', '/foo/bar.gif', true],
+            ['/foo/bar.{png,gif}', '/foo/BAR.gif', true],
+            ['/foo/Bar.{png,gif}', '/Foo/bar.gif', true],
 
             ['', '/foo', false],
             ['?', '/', false],
