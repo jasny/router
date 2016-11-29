@@ -42,41 +42,62 @@ class ControllerTest extends \PHPUnit_Framework_TestCase
     
     public function invalidProvider()
     {
-        $runnerNotExists = $this->createPartialMock(Runner\Controller::class, ['instantiate']);
-        $runnerNotExists->expects($this->never())->method('instantiate');
-        
-        $runnerNotCallable = $this->createPartialMock(Runner\Controller::class, ['instantiate', 'getClass']);
-        $runnerNotCallable->expects($this->once())->method('getClass')->with('foo')->willReturn('stdClass');
-        $runnerNotCallable->expects($this->never())->method('instantiate');
-        
         return [
             [
-                $runnerNotExists,
+                null,
                 'foo-bar-zoo',
                 "Can't route to controller 'FooBarZooController': class not exists"
             ],
             [
-                $runnerNotExists,
-                ['foo', 'bar', 'zoo'],
+                null,
+                ['foo', 'BAR', 'zoo'],
                 "Can't route to controller 'Foo\Bar\ZooController': class not exists"
             ],
             [
-                $runnerNotCallable,
+                'stdClass',
                 'foo',
                 "Can't route to controller 'stdClass': class does not have '__invoke' method"
-            ]
+            ],
+            [
+                'StDclass',
+                'foo',
+                "Can't route to controller 'StDclass': case mismatch with 'stdClass'"
+            ],
+            [
+                null,
+                'fooBarZoo',
+                "Can't route to controller 'FoobarzooController': class not exists"
+            ],
+            [
+                null,
+                '-foo-bar-zoo',
+                "Can't route to controller '-fooBarZooController': invalid classname"
+            ],
+            [
+                null,
+                'foo--bar-zoo',
+                "Can't route to controller 'Foo--barZooController': invalid classname"
+            ],
         ];
     }
     
     /**
      * @dataProvider invalidProvider
      * 
-     * @param Runner       $runner
+     * @param string       $class
      * @param string|array $controller
      * @param string       $message
      */
-    public function testInvokeInvalid(Runner $runner, $controller, $message)
+    public function testInvokeInvalid($class, $controller, $message)
     {
+        if (empty($class)) {
+            $runner = $this->createPartialMock(Runner\Controller::class, ['instantiate']);
+        } else {
+            $runner = $this->createPartialMock(Runner\Controller::class, ['instantiate', 'getClass']);
+            $runner->expects($this->once())->method('getClass')->with('foo')->willReturn($class);
+        }
+        $runner->expects($this->never())->method('instantiate');
+        
         $request = $this->createMock(ServerRequestInterface::class);
         $request->method('getProtocolVersion')->willReturn('1.1');
         

@@ -126,9 +126,15 @@ class Glob extends ArrayObject implements Routes
         }, $step1);
 
         $regex = rawurldecode($step2);
-        return (boolean)preg_match("~^{$regex}$~", $url);
+        return (boolean)preg_match("~^{$regex}$~i", $url);
     }
     
+    /**
+     * Split the route pattern in a path + inclusive and exclusive methods
+     * 
+     * @param string $pattern
+     * @return array  [path, inc, excl]
+     */
     protected function splitRoutePattern($pattern)
     {
         if (strpos($pattern, ' ') !== false && preg_match_all('/\s+\+(\w+)\b|\s+\-(\w+)\b/', $pattern, $matches)) {
