@@ -12,6 +12,25 @@ use Psr\Http\Message\ResponseInterface;
 class Controller extends Runner
 {
     /**
+     * Return with a 404 not found response
+     * 
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface $response
+     * @return ResponseInterface
+     */
+    protected function notFound(ServerRequestInterface $request, ResponseInterface $response)
+    {
+        $finalResponse = $response
+            ->withProtocolVersion($request->getProtocolVersion())
+            ->withStatus(404)
+            ->withHeader('Content-Type', 'text/plain');
+        
+        $finalResponse->getBody()->write("Not found");
+        
+        return $finalResponse;
+    }
+    
+    /**
      * Get class name from controller name
      * 
      * @param string $name
@@ -49,11 +68,13 @@ class Controller extends Runner
         $class = $this->getClass($name);
         
         if (!class_exists($class)) {
-            throw new \RuntimeException("Can not route to controller '$class': class not exists");
+            trigger_error("Can't route to controller '$class': class not exists", E_USER_NOTICE);
+            return $this->notFound($request, $response);
         }
         
         if (!method_exists($class, '__invoke')) {
-            throw new \RuntimeException("Can not route to controller '$class': class does not have '__invoke' method");   
+            trigger_error("Can't route to controller '$class': class does not have '__invoke' method", E_USER_NOTICE);   
+            return $this->notFound($request, $response);
         }
         
         $controller = $this->instantiate($class);
