@@ -11,7 +11,7 @@ use Psr\Http\Message\StreamInterface;
 use Jasny\Router\TestHelpers;
 
 /**
- * @covers Jasny\Router\Runner\Controller;
+ * @covers Jasny\Router\Runner\Controller
  */
 class ControllerTest extends \PHPUnit_Framework_TestCase
 {
