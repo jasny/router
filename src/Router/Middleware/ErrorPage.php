@@ -84,8 +84,6 @@ class ErrorPage
         $factory = $this->router->getFactory();
         $runner = $factory($errorRoute);
         
-        // TODO: replace response body
-        
         return $runner($request->withAttribute('route', $errorRoute), $response);
     }
 

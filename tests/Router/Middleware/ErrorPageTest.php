@@ -1,74 +1,41 @@
 <?php
 
 use Jasny\Router;
-use Jasny\Router\Routes\Glob;
+use Jasny\Router\Route;
+use Jasny\Router\Routes;
 use Jasny\Router\Middleware\ErrorPage;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\UriInterface;
 
+use Jasny\Router\TestHelpers;
+
 class ErrorPageTest extends PHPUnit_Framework_TestCase
 {
+    use TestHelpers;
+    
+    public function testGetRouter()
+    {
+        $router = $this->createMock(Router::class);
+        $middleware = new ErrorPage($router);
+        
+        $this->assertSame($router, $middleware->getRouter());
+    }
+    
     /**
      * Test invoke with invalid 'next' param
+     * 
+     * @expectedException InvalidArgumentException
      */
     public function testInvokeInvalidNext()
     {
-        $middleware = new ErrorPage($this->getRouter());
-        list($request, $response) = $this->getRequests();
-
-        $this->expectException(\InvalidArgumentException::class);
-
-        $result = $middleware($request, $response, 'not_callable');
-    }
-
-    /**
-     * Test error and not-error cases with calling 'next' callback
-     *
-     * @dataProvider invokeProvider
-     * @param int $statusCode
-     */
-    public function testInvokeNext($statusCode)
-    {
-        $isError = $statusCode >= 400;
-        $router = $this->getRouter();
+        $router = $this->createMock(Router::class);
         $middleware = new ErrorPage($router);
-        list($request, $response) = $this->getRequests($statusCode);
+        
+        $request = $this->createMock(ServerRequestInterface::class);
+        $response = $this->createMock(ResponseInterface::class);
 
-        $isError ?
-            $this->expectSetError($router, $request, $response, $statusCode) :
-            $this->notExpectSetError($router, $request, $response, $statusCode);
-
-        $result = $middleware($request, $response, function($request, $response) {
-            $response->nextCalled = true;
-
-            return $response;
-        });
-
-        $this->assertEquals(get_class($response), get_class($result), "Middleware should return response object");
-        $this->assertTrue($result->nextCalled, "'next' was not called");        
-    }
-
-    /**
-     * Test error and not-error cases without calling 'next' callback
-     *
-     * @dataProvider invokeProvider
-     * @param int $statusCode
-     */
-    public function testInvokeNoNext($statusCode)
-    {
-        $isError = $statusCode >= 400;
-        $router = $this->getRouter();
-        $middleware = new ErrorPage($router);
-        list($request, $response) = $this->getRequests($statusCode);
-
-        $isError ?
-            $this->expectSetError($router, $request, $response, $statusCode) :
-            $this->notExpectSetError($router, $request, $response, $statusCode);
-
-        $result = $middleware($request, $response);
-
-        $this->assertEquals($response, $result, "Middleware should return response object");     
+        $middleware($request, $response, 'not callable');
     }
 
     /**
@@ -79,74 +46,65 @@ class ErrorPageTest extends PHPUnit_Framework_TestCase
     public function invokeProvider()
     {
         return [
-            [200],
-            [300],
-            [400],
-            [404],
-            [500],
-            [503]
+            [200, 0, 0],
+            [300, 0, 0],
+            [400, 1, 1],
+            [404, 1, 1],
+            [500, 1, 1],
+            [503, 1, 1],
+            [400, 1, 0]
         ];
     }
 
     /**
-     * Get requests for testing
-     *
-     * @param int $statusCode 
-     * @return array
+     * Test error and not-error cases with calling 'next' callback
+     * @dataProvider invokeProvider
+     * 
+     * @param int $statusCode
+     * @param int $invoke
+     * @param int $run
      */
-    public function getRequests($statusCode = null)
+    public function testInvokeNext($statusCode, $invoke, $run)
     {
+        $errorUri = $this->createMock(UriInterface::class);
+        $errorRequest = $this->createMock(ServerRequestInterface::class);
+        $errorResponse = $this->createMock(ResponseInterface::class);
+
+        $route = $this->createMock(Route::class);
+        $routes = $this->createMock(Routes::class);
+        $routes->method('getRoute')->with($errorRequest)->willReturn($run ? $route : null);
+        
+        $uri = $this->createMock(UriInterface::class);
+        $uri->expects($this->exactly($invoke))->method('withPath')->with($statusCode)->willReturnSelf();
+        $uri->expects($this->exactly($invoke))->method('withQuery')->with(null)->willReturnSelf();
+        $uri->expects($this->exactly($invoke))->method('withFragment')->with(null)->willReturn($errorUri);
+        
         $request = $this->createMock(ServerRequestInterface::class);
+        $request->method('getUri')->willReturn($uri);
+        $request->expects($this->exactly($invoke))->method('withUri')->with($errorUri)->willReturn($errorRequest);
+        $request->expects($this->exactly($run))->method('withAttribute')->with('route', $route)
+            ->willReturn($errorRequest);
+
+        $runnerRequest = $this->createMock(ServerRequestInterface::class);
+        
         $response = $this->createMock(ResponseInterface::class);
-
-        if ($statusCode) {
-            $response->method('getStatusCode')->will($this->returnValue($statusCode));            
-        }
-
-        return [$request, $response];
-    }
-
-    /**
-     * @return Router
-     */
-    public function getRouter()
-    {
-        return $this->getMockBuilder(Router::class)->disableOriginalConstructor()->getMock();
-    }
-
-    /**
-     * Expect for error
-     *
-     * @param Router $router
-     * @param ServerRequestInterface $request 
-     * @param ResponseInterface $response 
-     * @param int $statusCode 
-     */
-    public function expectSetError($router, $request, $response, $statusCode)
-    {
-        $uri = $this->createMock(UriInterface::class);
-
-        $uri->expects($this->once())->method('withPath')->with($this->equalTo("/$statusCode"))->will($this->returnSelf());
-        $request->expects($this->once())->method('getUri')->will($this->returnValue($uri));
-        $request->expects($this->once())->method('withUri')->with($this->equalTo($uri), $this->equalTo(true))->will($this->returnSelf());
-        $router->expects($this->once())->method('run')->with($this->equalTo($request), $this->equalTo($response))->will($this->returnValue($response));
-    }
-
-    /**
-     * Not expect for error
-     *
-     * @param Router $router
-     * @param ServerRequestInterface $request 
-     * @param ResponseInterface $response 
-     * @param int $statusCode 
-     */
-    public function notExpectSetError($router, $request, $response, $statusCode)
-    {
-        $uri = $this->createMock(UriInterface::class);
-
-        $uri->expects($this->never())->method('withPath');
-        $request->expects($this->never())->method('getUri');
-        $request->expects($this->never())->method('withUri');
-        $router->expects($this->never())->method('run');
+        
+        $nextResponse = $this->createMock(ResponseInterface::class);
+        $nextResponse->method('getStatusCode')->willReturn($statusCode);
+        
+        $next = $this->createCallbackMock($this->once(), [], $nextResponse);
+        
+        $runner = $this->createCallbackMock($this->exactly($run), [$runnerRequest, $nextResponse], $errorResponse);
+        $factory = $this->createCallbackMock($this->exactly($run), [$route], $runner);
+        
+        $router = $this->createMock(Router::class);
+        $router->method('getRoutes')->willReturn($routes);
+        $router->method('getFactory')->willReturn($factory);
+        
+        $middleware = new ErrorPage($router);
+        
+        $result = $middleware($request, $response, $next);
+        
+        $this->assertSame($run === 0 ? $nextResponse : $errorResponse, $result);
     }
 }
