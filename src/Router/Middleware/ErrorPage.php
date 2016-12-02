@@ -20,7 +20,7 @@ class ErrorPage
     /**
      * Class constructor
      * 
-     * @param Router $routes
+     * @param Router $router
      */
     public function __construct(Router $router)
     {
@@ -42,24 +42,49 @@ class ErrorPage
      *
      * @param ServerRequestInterface $request
      * @param ResponseInterface      $response
-     * @param callback               $next
+     * @param callable               $next
      * @return ResponseInterface
      */
-    public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next = null)
+    public function __invoke(ServerRequestInterface $request, ResponseInterface $response, $next)
     {
         if ($next && !is_callable($next)) {
-            throw new \InvalidArgumentException("'next' should be a callback");            
+            throw new \InvalidArgumentException("next should be callable");            
         }
 
-        $response = $next ? call_user_func($next, $request, $response) : $response;    
+        $nextResponse = $next($request, $response); 
+        
+        return $this->isErrorStatus($nextResponse->getStatusCode())
+            ? $this->routeToErrorPage($request, $nextResponse)
+            : $nextResponse;
+    }
+    
+    /**
+     * Route to the error page
+     *
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface      $response
+     * @return ResponseInterface
+     */
+    protected function routeToErrorPage(ServerRequestInterface $request, ResponseInterface $response)
+    {
         $status = $response->getStatusCode();
-
-        if (!$this->isErrorStatus($status)) return $response;
-
-        $uri = $request->getUri()->withPath("/$status");
-        $request = $request->withUri($uri, true);
-
-        return $this->getRouter()->run($request, $response);
+        
+        $uri = $request->getUri()
+            ->withPath($status)
+            ->withQuery(null)
+            ->withFragment(null);
+        
+        $errorRequest = $request->withUri($uri);
+        $errorRoute = $this->router->getRoutes()->getRoute($errorRequest);
+        
+        if (!isset($errorRoute)) {
+            return $response;
+        }
+        
+        $factory = $this->router->getFactory();
+        $runner = $factory($errorRoute);
+        
+        return $runner($request->withAttribute('route', $errorRoute), $response);
     }
 
     /**
@@ -70,6 +95,6 @@ class ErrorPage
      */
     protected function isErrorStatus($status)
     {
-        return $status >= 400 && $status < 600;
+        return $status >= 400;
     }
 }
