@@ -9,13 +9,16 @@ use Psr\Http\Message\ResponseInterface;
 /**
  * Route to a PHP script
  */
-class PhpScript extends Runner
+class PhpScript
 {
+    use Runner\Implementation;
+    
     /**
      * Include a file 
-     * @param type $file
+     * 
+     * @param string                 $file
      * @param ServerRequestInterface $request
-     * @param ResponseInterface $response
+     * @param ResponseInterface      $response
      */
     protected function includeScript($file, ServerRequestInterface $request, ResponseInterface $response)
     {
@@ -25,8 +28,8 @@ class PhpScript extends Runner
     /**
      * Route to a file
      * 
-     * @param ServerRequestInterface  $request
-     * @param ResponseInterface       $response
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface      $response
      * @return ResponseInterface|mixed
      */
     public function run(ServerRequestInterface $request, ResponseInterface $response)
@@ -35,11 +38,13 @@ class PhpScript extends Runner
         $file = !empty($route->file) ? ltrim($route->file, '/') : '';
 
         if ($file[0] === '~' || strpos($file, '..') !== false) {
-            throw new \RuntimeException("Won't route to '$file': '~', '..' are not allowed in filename");
+            trigger_error("Won't route to '$file': '~', '..' are not allowed in filename", E_USER_NOTICE);
+            return $this->notFound($request, $response);
         }
         
         if (!file_exists($file)) {
-            throw new \RuntimeException("Failed to route using '$file': File doesn't exist");
+            trigger_error("Failed to route using '$file': File doesn't exist", E_USER_NOTICE);
+            return $this->notFound($request, $response);
         }
 
         $result = $this->includeScript($file, $request, $response);

@@ -95,11 +95,10 @@ class ErrorPageTest extends PHPUnit_Framework_TestCase
         $next = $this->createCallbackMock($this->once(), [], $nextResponse);
         
         $runner = $this->createCallbackMock($this->exactly($run), [$runnerRequest, $nextResponse], $errorResponse);
-        $factory = $this->createCallbackMock($this->exactly($run), [$route], $runner);
         
         $router = $this->createMock(Router::class);
         $router->method('getRoutes')->willReturn($routes);
-        $router->method('getFactory')->willReturn($factory);
+        $router->method('getRunner')->willReturn($runner);
         
         $middleware = new ErrorPage($router);
         

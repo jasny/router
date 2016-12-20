@@ -7,12 +7,12 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * Description of Callback
- *
- * @author arnold
+ * Use `fn` property of route as callback
  */
-class Callback extends Runner
+class Callback
 {
+    use Runner\Implementation;
+    
     /**
      * Use function to handle request and response
      * 
@@ -26,7 +26,8 @@ class Callback extends Runner
         $callback = !empty($route->fn) ? $route->fn : null;
 
         if (!is_callable($callback)) {
-            throw new \RuntimeException("'fn' property of route shoud be a callable");
+            trigger_error("'fn' property of route shoud be a callable", E_USER_NOTICE);
+            return $this->notFound($request, $response);
         }
 
         return $callback($request, $response);

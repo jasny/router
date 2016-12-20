@@ -3,102 +3,55 @@
 namespace Jasny\Router\Runner;
 
 use Jasny\Router\Runner;
+use Jasny\Router\ControllerFactory;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
  * Run a route using a controller
  */
-class Controller extends Runner
+class Controller
 {
-    /**
-     * Return with a 404 not found response
-     * 
-     * @param ServerRequestInterface $request
-     * @param ResponseInterface $response
-     * @return ResponseInterface
-     */
-    protected function notFound(ServerRequestInterface $request, ResponseInterface $response)
-    {
-        $finalResponse = $response
-            ->withProtocolVersion($request->getProtocolVersion())
-            ->withStatus(404)
-            ->withHeader('Content-Type', 'text/plain');
-        
-        $finalResponse->getBody()->write("Not found");
-        
-        return $finalResponse;
-    }
+    use Runner\Implementation;
 
     /**
-     * Assert that a class exists and will provide a callable object
+     * Factory for dependecy injection
      * 
-     * @return type
+     * @var callable 
      */
-    protected function validateClass($class)
-    {
-        if (!preg_match('/^([a-zA-Z_]\w*\\\\)*[a-zA-Z_]\w*$/', $class)) {
-            trigger_error("Can't route to controller '$class': invalid classname", E_USER_NOTICE);
-            return false;
-        }
-        
-        if (!class_exists($class)) {
-            trigger_error("Can't route to controller '$class': class not exists", E_USER_NOTICE);
-            return false;
-        }
-
-        $refl = new \ReflectionClass($class);
-        $realClass = $refl->getName();
-        
-        if ($realClass !== $class) {
-            trigger_error("Can't route to controller '$class': case mismatch with '$realClass'", E_USER_NOTICE);
-            return false;
-        }
-        
-        if (!$refl->hasMethod('__invoke')) {
-            trigger_error("Can't route to controller '$class': class does not have '__invoke' method", E_USER_NOTICE);   
-            return false;
-        }
-        
-        return true;
-    }
-
+    protected $factory;
+    
+    
     /**
-     * Turn kabab-case into StudlyCase.
+     * Create a clone that uses the provided factory
      * 
-     * @internal Jasny\studlycase isn't used because it's to tolerent, which might lead to security issues.
-     * 
-     * @param string $string
-     * @return string
+     * @param callable $factory
      */
-    protected function studlyCase($string)
+    public function withFactory($factory)
     {
-        return preg_replace_callback('/(?:^|(\w)-)(\w)/', function($match) {
-            return $match[1] . strtoupper($match[2]);
-        }, strtolower(addcslashes($string, '\\')));
+        if (!is_callable($factory)) {
+            throw new \InvalidArgumentException("Factory isn't callable");
+        }
+        
+        $runner = clone $this;
+        $runner->factory = $factory;
+        
+        return $runner;
     }
     
     /**
-     * Get class name from controller name
+     * Get the controller factory
      * 
-     * @param string|array $name
-     * @return string
+     * @param boolean $forceCallable
+     * @return callable|ContainerInterface
      */
-    protected function getClass($name)
+    public function getFactory()
     {
-        return join('\\', array_map([$this, 'studlyCase'], (array)$name)) . 'Controller';
-    }
-    
-    /**
-     * Instantiate a controller object
-     * @codeCoverageIgnore
-     * 
-     * @param string $class
-     * @return callable|object
-     */
-    protected function instantiate($class)
-    {
-        return new $class();
+        if (!isset($this->factory)) {
+            $this->factory = new ControllerFactory();
+        }
+        
+        return $this->factory;
     }
     
     /**
@@ -111,15 +64,20 @@ class Controller extends Runner
     public function run(ServerRequestInterface $request, ResponseInterface $response)
     {
         $route = $request->getAttribute('route');        
-        $name = !empty($route->controller) ? $route->controller : null;
+        $name = !empty($route->controller) ? $route->controller : 'default';
         
-        $class = $this->getClass($name);
-
-        if (!$this->validateClass($class)) {
+        try {
+            $controller = call_user_func($this->getFactory(), $name);
+        } catch (\Exception $ex) {
+            trigger_error($ex->getMessage(), E_USER_NOTICE);
             return $this->notFound($request, $response);
         }
-        
-        $controller = $this->instantiate($class);
+
+        if (!method_exists($controller, '__invoke')) {
+            $class = get_class($controller);
+            trigger_error("Can't route to controller '$class': class does not have '__invoke' method", E_USER_NOTICE);
+            return $this->notFound($request, $response);
+        }
         
         return $controller($request, $response);
     }

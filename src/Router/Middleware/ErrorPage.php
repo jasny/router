@@ -69,20 +69,18 @@ class ErrorPage
     {
         $status = $response->getStatusCode();
         
-        $uri = $request->getUri()
+        $errorUri = $request->getUri()
             ->withPath($status)
             ->withQuery(null)
             ->withFragment(null);
         
-        $errorRequest = $request->withUri($uri);
-        $errorRoute = $this->router->getRoutes()->getRoute($errorRequest);
+        $errorRoute = $this->router->getRoutes()->getRoute($request->withUri($errorUri));
         
         if (!isset($errorRoute)) {
             return $response;
         }
         
-        $factory = $this->router->getFactory();
-        $runner = $factory($errorRoute);
+        $runner = $this->router->getRunner();
         
         return $runner($request->withAttribute('route', $errorRoute), $response);
     }

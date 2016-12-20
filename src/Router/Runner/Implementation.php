@@ -1,15 +1,18 @@
 <?php
 
-namespace Jasny\Router;
+namespace Jasny\Router\Runner;
 
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Jasny\Router\Helper\NotFound;
 
 /**
- * A runner can be invoked in order to run the action specified in a route
+ * Common logic for invoking a runner
  */
-abstract class Runner
-{    
+trait Implementation
+{
+    use NotFound;
+    
     /**
      * Invoke the action specified in the route
      * 

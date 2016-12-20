@@ -3,7 +3,8 @@
 namespace Jasny;
 
 use Jasny\Router\Routes;
-use Jasny\Router\RunnerFactory;
+use Jasny\Router\Route;
+use Jasny\Router\Runner;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -25,10 +26,9 @@ class Router
     protected $middlewares = [];
 
     /**
-     * Factory of Runner objects
-     * @var RunnerFactory
+     * @var callable
      **/
-    protected $factory;
+    protected $runner;
     
     
     /**
@@ -63,32 +63,32 @@ class Router
 
     
     /**
-     * Get factory of Runner objects
+     * Get Runner
      *
-     * @return RunnerFactory
+     * @return callable
      */
-    public function getFactory()
+    public function getRunner()
     {
-        if (!isset($this->factory)) {
-            $this->factory = new RunnerFactory();
+        if (!isset($this->runner)) {
+            $this->runner = new Runner\Delegate();
         }
         
-        return $this->factory;
+        return $this->runner;
     }
 
     /**
-     * Set the factory of Runner objects
+     * Set Runner
      *
-     * @param callable $factory
+     * @param callable $runner
      * @return Router $this
      */
-    public function setFactory($factory)
+    public function setRunner($runner)
     {
-        if (!is_callable($factory)) {
-            throw new \InvalidArgumentException("Factory must be a callable");            
+        if (!is_callable($runner)) {
+            throw new \InvalidArgumentException("Runner must be a callable");            
         }
 
-        $this->factory = $factory;
+        $this->runner = $runner;
 
         return $this;
     }
@@ -199,18 +199,19 @@ class Router
      */
     public function run(ServerRequestInterface $request, ResponseInterface $response, $next = null)
     {
-        $route = $this->routes->getRoute($request);
-        
-        if (!$route) {
-            return $this->notFound($request, $response);
+        if (!$request->getAttribute('route') instanceof Route) {
+            $route = $this->routes->getRoute($request);
+
+            if (!$route) {
+                return $this->notFound($request, $response);
+            }
+
+            $request = $request->withAttribute('route', $route);
         }
         
-        $requestWithRoute = $request->withAttribute('route', $route);
-        
-        $factory = $this->getFactory();
-        $runner = $factory($route);
+        $runner = $this->getRunner();
 
-        return $runner($requestWithRoute, $response, $next);
+        return $runner($request, $response, $next);
     }
 
     /**

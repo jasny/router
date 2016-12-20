@@ -5,7 +5,7 @@ namespace Jasny;
 use Jasny\Router;
 use Jasny\Router\Route;
 use Jasny\Router\Routes;
-use Jasny\Router\RunnerFactory;
+use Jasny\Router\Runner;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
@@ -34,29 +34,29 @@ class RouterTest extends \PHPUnit_Framework_TestCase
 
     
     /**
-     * Test getting runner factory
+     * Test getting runner
      */
-    public function testGetFactory()
+    public function testGetRunner()
     {
         $router = new Router($this->createMock(Routes::class));
-        $factory = $router->getFactory();
+        $runner = $router->getRunner();
 
-        $this->assertInstanceOf(RunnerFactory::class, $factory);
+        $this->assertInstanceOf(Runner\Delegate::class, $runner);
     }
     
     /**
      * Test setting runner factory
      */
-    public function testSetFactory()
+    public function testSetRunner()
     {
-        $factoryMock = $this->createCallbackMock($this->never());
+        $runnerMock = $this->createCallbackMock($this->never());
         
         $router = new Router($this->createMock(Routes::class));
         
-        $ret = $router->setFactory($factoryMock);
+        $ret = $router->setRunner($runnerMock);
         $this->assertSame($router, $ret);
         
-        $this->assertSame($factoryMock, $router->getFactory());
+        $this->assertSame($runnerMock, $router->getRunner());
     }
 
     /**
@@ -65,7 +65,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
     public function testSetInvalidFactory()
     {
         $router = new Router($this->createMock(Routes::class));
-        $router->setFactory('foo bar zoo');
+        $router->setRunner('foo bar zoo');
     }
 
     
@@ -112,13 +112,12 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $finalResponse = $this->createMock(ResponseInterface::class);
         
         $runner = $this->createCallbackMock($this->once(), [$requestWithRoute, $response, $next], $finalResponse);
-        $factory = $this->createCallbackMock($this->once(), [$route], $runner);
 
         $routes = $this->createMock(Routes::class);
         $routes->expects($this->once())->method('getRoute')->with($request)->willReturn($route);
 
         $router = new Router($routes);
-        $router->setFactory($factory);
+        $router->setRunner($runner);
         
         $result = $router($request, $response, $next);
         
@@ -139,13 +138,13 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $finalResponse->expects($this->once())->method('getBody')->willReturn($body);
         $body->expects($this->once())->method('write')->with('Not Found');
             
-        $factory = $this->createCallbackMock($this->never());
+        $runner = $this->createCallbackMock($this->never());
 
         $routes = $this->createMock(Routes::class);
         $routes->expects($this->once())->method('getRoute')->with($request)->willReturn(null);
 
         $router = new Router($routes);
-        $router->setFactory($factory);
+        $router->setRunner($runner);
         
         $result = $router($request, $response);
         
@@ -285,13 +284,12 @@ class RouterTest extends \PHPUnit_Framework_TestCase
             }));
         
         $runner = $this->createCallbackMock($this->once(), [$requestTwo, $responseTwo], $finalResponse);
-        $factory = $this->createCallbackMock($this->once(), [$route], $runner);
 
         $routes = $this->createMock(Routes::class);
         $routes->expects($this->once())->method('getRoute')->with($request)->willReturn($route);
 
         $router = new Router($routes);
-        $router->setFactory($factory);
+        $router->setRunner($runner);
         
         $router->add($middlewareOne);
         $router->add($middlewareTwo);
@@ -333,13 +331,12 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $middlewareTwo->expects($this->never())->method('__invoke');
         
         $runner = $this->createCallbackMock($this->once(), [$requestOne, $responseOne], $finalResponse);
-        $factory = $this->createCallbackMock($this->once(), [$route], $runner);
 
         $routes = $this->createMock(Routes::class);
         $routes->expects($this->once())->method('getRoute')->with($request)->willReturn($route);
 
         $router = new Router($routes);
-        $router->setFactory($factory);
+        $router->setRunner($runner);
         
         $router->add('/foo', $middlewareOne);
         $router->add('/zoo', $middlewareTwo);

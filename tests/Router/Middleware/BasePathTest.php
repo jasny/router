@@ -121,14 +121,11 @@ class BasePathTest extends \PHPUnit_Framework_TestCase
      */
     public function testNotFound($basePath, $path)
     {
-        $request = $this->createMock(ServerRequestInterface::class);
-        $response = $this->createMock(ResponseInterface::class);
+        list($request, $response, $finalResponse) = $this->mockNotFound();
+
+        $this->expectRequestGetPath($request, $path);
 
         $middleware = new BasePath($basePath);
-        
-        $this->expectRequestGetPath($request, $path);
-        $finalResponse = $this->expectNotFound($response);
-
         $next = $this->createCallbackMock($this->never());
         
         $result = $middleware($request, $response, $next);
@@ -211,25 +208,5 @@ class BasePathTest extends \PHPUnit_Framework_TestCase
         $request->expects($this->once())->method('getUri')->will($this->returnValue($uri));
         $request->expects($this->once())->method('withUri')->with($this->equalTo($uri))->will($this->returnSelf());
         $request->expects($this->once())->method('withAttribute')->with($this->equalTo('original_uri'), $this->equalTo($uri))->will($this->returnSelf());
-    }
-
-    /**
-     * Expect for not found error
-     *
-     * @param ResponseInterface $response 
-     * @return ResponseInterface
-     */
-    public function expectNotFound(ResponseInterface $response)
-    {
-        $finalResponse = $this->createMock(ResponseInterface::class);
-        
-        $response->expects($this->once())->method('withStatus')->with(404)->willReturn($finalResponse);
-
-        $stream = $this->createMock(StreamInterface::class);
-        $stream->expects($this->once())->method('write')->with($this->equalTo('Not Found'));
-
-        $finalResponse->expects($this->once())->method('getBody')->willReturn($stream);
-        
-        return $finalResponse;
     }
 }

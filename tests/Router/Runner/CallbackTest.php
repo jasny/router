@@ -1,25 +1,24 @@
 <?php
 
-namespace Jasny\Router;
+namespace Jasny\Router\Runner;
 
 use Jasny\Router\Route;
-use Jasny\Router\Runner\Callback;
+use Jasny\Router\Runner;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
-
+    
 use Jasny\Router\TestHelpers;
 
 /**
  * @covers Jasny\Router\Runner\Callback
+ * @covers Jasny\Router\Runner\Implementation
+ * @covers Jasny\Router\Helpers\NotFound
  */
 class CallbackTest extends \PHPUnit_Framework_TestCase
 {
     use TestHelpers;
     
-    /**
-     * Test creating Callback runner
-     */
-    public function testCallback()
+    public function testInvoke()
     {
         $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
@@ -30,44 +29,64 @@ class CallbackTest extends \PHPUnit_Framework_TestCase
         
         $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
             
-        $runner = new Callback($route);
+        $runner = new Runner\Callback($route);
         $result = $runner($request, $response);
         
         $this->assertSame($finalResponse, $result);
     }
     
-    /**
-     * @expectedException RuntimeException
-     * @expectedExceptionMessage 'fn' property of route shoud be a callable
-     */
-    public function testNoCallback()
+    public function testInvokeWithNext()
     {
         $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
-        
+        $runResponse = $this->createMock(ResponseInterface::class);
+        $finalResponse = $this->createMock(ResponseInterface::class);
+
         $route = $this->createMock(Route::class);
+        $route->fn = $this->createCallbackMock($this->once(), [$request, $response], $finalResponse);
         
         $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
-            
-        $runner = new Callback($route);
-        $runner($request, $response);
+        
+        $next = $this->createCallbackMock($this->once(), [$request, $runResponse], $finalResponse);
+        
+        $runner = new Runner\Callback($route);
+
+        $result = $runner($request, $response, $next);
+        
+        $this->assertSame($finalResponse, $result);
+    }
+    
+    
+    public function invalidCallbackProvider()
+    {
+        return [
+            [],
+            ['foo bar zoo']
+        ];
     }
     
     /**
-     * @expectedException RuntimeException
-     * @expectedExceptionMessage 'fn' property of route shoud be a callable
+     * @dataProvider invalidCallbackProvider
+     * 
+     * @param string $fn
      */
-    public function testInvalidCallback()
+    public function testInvalidCallback($fn = null)
     {
-        $request = $this->createMock(ServerRequestInterface::class);
-        $response = $this->createMock(ResponseInterface::class);
+        list($request, $response, $notFoundResponse) = $this->mockNotFound();
         
         $route = $this->createMock(Route::class);
-        $route->fn = 'foo bar zoo';
+        
+        if (isset($fn)) {
+            $route->fn = $fn;
+        }
         
         $request->expects($this->once())->method('getAttribute')->with('route')->willReturn($route);
-            
-        $runner = new Callback($route);
-        $runner($request, $response);
+        
+        $runner = new Runner\Callback($route);
+        $result = @$runner($request, $response);
+        
+        $this->assertLastError(E_USER_NOTICE, "'fn' property of route shoud be a callable");
+        
+        $this->assertSame($notFoundResponse, $result);
     }
 }

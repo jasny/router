@@ -4,12 +4,15 @@ namespace Jasny\Router\Middleware;
 
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Jasny\Router\Helper\NotFound;
 
 /**
  * Set base path for request
  */
 class BasePath
 {    
+    use NotFound;
+    
     /**
      * Base path
      * @var string
@@ -99,20 +102,5 @@ class BasePath
     protected function hasBasePath($path)
     {
         return strpos($path . '/', $this->getBasePath() . '/') === 0;
-    }
-
-    /**
-     * Respond with 404 Not Found
-     *
-     * @param ServerRequestInterface $request
-     * @param ResponseInterface      $response
-     * @return ResponseInterface
-     */
-    protected function notFound(ServerRequestInterface $request, ResponseInterface $response)
-    {
-        $notFound = $response->withStatus(404);
-        $notFound->getBody()->write('Not Found');
-
-        return $notFound;
     }
 }
