@@ -2,7 +2,7 @@
 
 namespace Jasny\Router\Middleware;
 
-use Jasny\Router\Routes;
+use Jasny\Router\RoutesInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -13,7 +13,7 @@ class NotFound
 {    
     /**
      * Routes
-     * @var Routes
+     * @var RoutesInterface
      */
     protected $routes = null;
 
@@ -33,11 +33,11 @@ class NotFound
     /**
      * Class constructor
      * 
-     * @param Routes $routes
+     * @param RoutesInterface $routes
      * @param callback|int $notFound 
      * @param callback|int $methodNotAllowed 
      */
-    public function __construct(Routes $routes, $notFound = 404, $methodNotAllowed = null)
+    public function __construct(RoutesInterface $routes, $notFound = 404, $methodNotAllowed = null)
     {
         if (is_string($notFound) && ctype_digit($notFound)) {
             $notFound = (int)$notFound;
@@ -65,7 +65,7 @@ class NotFound
     /**
      * Get routes
      *
-     * @return Routes
+     * @return RoutesInterface
      */
     public function getRoutes()
     {

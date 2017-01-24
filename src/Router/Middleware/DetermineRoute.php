@@ -2,7 +2,7 @@
 
 namespace Jasny\Router\Middleware;
 
-use Jasny\Router\Routes;
+use Jasny\Router\RoutesInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -13,7 +13,7 @@ class DetermineRoute
 {    
     /**
      * Routes
-     * @var Routes
+     * @var RoutesInterface
      */
     protected $routes = null;
 
@@ -21,9 +21,9 @@ class DetermineRoute
     /**
      * Class constructor
      * 
-     * @param Routes $routes
+     * @param RoutesInterface $routes
      */
-    public function __construct(Routes $routes)
+    public function __construct(RoutesInterface $routes)
     {
         $this->routes = $routes;
     }
@@ -31,7 +31,7 @@ class DetermineRoute
     /**
      * Get routes
      *
-     * @return Routes
+     * @return RoutesInterface
      */
     public function getRoutes()
     {

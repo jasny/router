@@ -2,7 +2,7 @@
 
 namespace Jasny;
 
-use Jasny\Router\Routes;
+use Jasny\Router\RoutesInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -14,7 +14,7 @@ interface RouterInterface
     /**
      * Get a all routes
      * 
-     * @return Routes
+     * @return RoutesInterface
      */
     public function getRoutes();
 

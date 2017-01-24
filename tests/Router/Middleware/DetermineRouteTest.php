@@ -1,7 +1,7 @@
 <?php
 
 use Jasny\Router\Route;
-use Jasny\Router\Routes;
+use Jasny\Router\RoutesInterface;
 use Jasny\Router\Middleware\DetermineRoute;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -17,7 +17,7 @@ class DetermineRouteTest extends PHPUnit_Framework_TestCase
     
     public function testConstruct()
     {
-        $routes = $this->createMock(Routes::class);
+        $routes = $this->createMock(RoutesInterface::class);
         $middelware = new DetermineRoute($routes);
         
         $this->assertSame($routes, $middelware->getRoutes());
@@ -48,7 +48,7 @@ class DetermineRouteTest extends PHPUnit_Framework_TestCase
         
         $next = $this->createCallbackMock($this->once(), [$requestWithRoute, $response]);
         
-        $routes = $this->createMock(Routes::class);
+        $routes = $this->createMock(RoutesInterface::class);
         $routes->expects($this->once())->method('getRoute')->with($request)->willReturn($route);
         
         $middelware = new DetermineRoute($routes);
@@ -64,7 +64,7 @@ class DetermineRouteTest extends PHPUnit_Framework_TestCase
         $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
         
-        $routes = $this->createMock(Routes::class);
+        $routes = $this->createMock(RoutesInterface::class);
         $middelware = new DetermineRoute($routes);
         
         $middelware($request, $response, 'not a function');

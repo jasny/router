@@ -1,6 +1,6 @@
 <?php
 
-use Jasny\Router\Routes;
+use Jasny\Router\RoutesInterface;
 use Jasny\Router\Middleware\NotFound;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -31,7 +31,7 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
      */
     public function testConstructInvalidNotFound($status)
     {
-        new NotFound($this->createMock(Routes::class), $status);
+        new NotFound($this->createMock(RoutesInterface::class), $status);
     }
 
     /**
@@ -39,7 +39,7 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
      */
     public function testConstructNotFoundNotNull()
     {
-        new NotFound($this->createMock(Routes::class), null);
+        new NotFound($this->createMock(RoutesInterface::class), null);
     }
 
     /**
@@ -50,7 +50,7 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
      */
     public function testConstructInvalidMethodNotAllowed($status)
     {
-        new NotFound($this->createMock(Routes::class), 404, $status);
+        new NotFound($this->createMock(RoutesInterface::class), 404, $status);
     }
 
     /**
@@ -61,7 +61,7 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
         $request = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
         
-        $middleware = new NotFound($this->createMock(Routes::class));
+        $middleware = new NotFound($this->createMock(RoutesInterface::class));
 
         $middleware($request, $response, 'foo bar zoo');
     }
@@ -114,7 +114,7 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
         
         $response->expects($this->never())->method('withStatus');
         
-        $routes = $this->createMock(Routes::class);
+        $routes = $this->createMock(RoutesInterface::class);
         $routes->expects($this->once())->method('hasRoute')->with($request)->willReturn(true);
         
         $middleware = new NotFound($routes, $notFound, $methodNotAllowed);
@@ -160,7 +160,7 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
         
         $next->expects($this->never())->method('__invoke');
         
-        $routes = $this->createMock(Routes::class);
+        $routes = $this->createMock(RoutesInterface::class);
         
         $routes->expects($this->exactly(isset($methodNotAllowed) ? 2 : 1))->method('hasRoute')
             ->withConsecutive([$request], [$request, false])
@@ -211,7 +211,7 @@ class NotFoundTest extends PHPUnit_Framework_TestCase
         
         $next->expects($this->never())->method('__invoke');
         
-        $routes = $this->createMock(Routes::class);
+        $routes = $this->createMock(RoutesInterface::class);
         
         $routes->expects($this->exactly(isset($methodNotAllowed) ? 2 : 1))->method('hasRoute')
             ->withConsecutive([$request], [$request, false])

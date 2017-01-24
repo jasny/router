@@ -3,7 +3,7 @@
 namespace Jasny;
 
 use Jasny\RouterInterface;
-use Jasny\Router\Routes;
+use Jasny\Router\RoutesInterface;
 use Jasny\Router\Route;
 use Jasny\Router\Runner;
 use Psr\Http\Message\ServerRequestInterface;
@@ -16,7 +16,7 @@ class Router implements RouterInterface
 {
     /**
      * Specific routes
-     * @var Routes
+     * @var RoutesInterface
      */
     protected $routes;
 
@@ -35,9 +35,9 @@ class Router implements RouterInterface
     /**
      * Class constructor
      * 
-     * @param Routes $routes
+     * @param RoutesInterface $routes
      */
-    public function __construct(Routes $routes)
+    public function __construct(RoutesInterface $routes)
     {
         $this->routes = $routes;
     }
@@ -45,7 +45,7 @@ class Router implements RouterInterface
     /**
      * Get a all routes
      * 
-     * @return Routes
+     * @return RoutesInterface
      */
     public function getRoutes()
     {

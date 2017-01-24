@@ -4,7 +4,7 @@ namespace Jasny\Router\Routes;
 
 use ArrayObject;
 use Jasny\Router\UrlParsing;
-use Jasny\Router\Routes;
+use Jasny\Router\RoutesInterface;
 use Jasny\Router\Route;
 use Jasny\Router\Routes\RouteBinding;
 use Psr\Http\Message\ServerRequestInterface;
@@ -13,7 +13,7 @@ use Psr\Http\Message\UriInterface;
 /**
  * Match URL against a shell wildcard pattern. 
  */
-class Glob extends ArrayObject implements Routes
+class Glob extends ArrayObject implements RoutesInterface
 {
     use UrlParsing;
     use RouteBinding;
@@ -21,7 +21,7 @@ class Glob extends ArrayObject implements Routes
     /**
      * Class constructor
      * 
-     * @param Routes[]|array|stdClass|\Traversable $input
+     * @param Route[]|array|stdClass|\Traversable $input
      * @param int                         $flags
      */
     public function __construct($input = [], $flags = 0)

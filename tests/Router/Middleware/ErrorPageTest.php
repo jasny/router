@@ -2,7 +2,7 @@
 
 use Jasny\RouterInterface;
 use Jasny\Router\Route;
-use Jasny\Router\Routes;
+use Jasny\Router\RoutesInterface;
 use Jasny\Router\Middleware\ErrorPage;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -71,7 +71,7 @@ class ErrorPageTest extends PHPUnit_Framework_TestCase
         $errorResponse = $this->createMock(ResponseInterface::class);
 
         $route = $this->createMock(Route::class);
-        $routes = $this->createMock(Routes::class);
+        $routes = $this->createMock(RoutesInterface::class);
         $routes->method('getRoute')->with($errorRequest)->willReturn($run ? $route : null);
         
         $uri = $this->createMock(UriInterface::class);

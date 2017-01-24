@@ -4,7 +4,7 @@ namespace Jasny;
 
 use Jasny\Router;
 use Jasny\Router\Route;
-use Jasny\Router\Routes;
+use Jasny\Router\RoutesInterface;
 use Jasny\Router\Runner;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -26,10 +26,10 @@ class RouterTest extends \PHPUnit_Framework_TestCase
      */
     public function testGetRoutes()
     {   
-        $routes = $this->createMock(Routes::class);
+        $routes = $this->createMock(RoutesInterface::class);
 
         $router = new Router($routes);
-        $this->assertSame($routes, $router->getRoutes(), "Routes were not set correctly");
+        $this->assertSame($routes, $router->getRoutes(), "RoutesInterface were not set correctly");
     }
 
     
@@ -38,7 +38,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
      */
     public function testGetRunner()
     {
-        $router = new Router($this->createMock(Routes::class));
+        $router = new Router($this->createMock(RoutesInterface::class));
         $runner = $router->getRunner();
 
         $this->assertInstanceOf(Runner\Delegate::class, $runner);
@@ -51,7 +51,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
     {
         $runnerMock = $this->createCallbackMock($this->never());
         
-        $router = new Router($this->createMock(Routes::class));
+        $router = new Router($this->createMock(RoutesInterface::class));
         
         $ret = $router->setRunner($runnerMock);
         $this->assertSame($router, $ret);
@@ -64,7 +64,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
      */
     public function testSetInvalidFactory()
     {
-        $router = new Router($this->createMock(Routes::class));
+        $router = new Router($this->createMock(RoutesInterface::class));
         $router->setRunner('foo bar zoo');
     }
 
@@ -113,7 +113,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         
         $runner = $this->createCallbackMock($this->once(), [$requestWithRoute, $response, $next], $finalResponse);
 
-        $routes = $this->createMock(Routes::class);
+        $routes = $this->createMock(RoutesInterface::class);
         $routes->expects($this->once())->method('getRoute')->with($request)->willReturn($route);
 
         $router = new Router($routes);
@@ -140,7 +140,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
             
         $runner = $this->createCallbackMock($this->never());
 
-        $routes = $this->createMock(Routes::class);
+        $routes = $this->createMock(RoutesInterface::class);
         $routes->expects($this->once())->method('getRoute')->with($request)->willReturn(null);
 
         $router = new Router($routes);
@@ -159,7 +159,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $middlewareOne = $this->createCallbackMock($this->never());
         $middlewareTwo = $this->createCallbackMock($this->never());
 
-        $router = new Router($this->createMock(Routes::class));
+        $router = new Router($this->createMock(RoutesInterface::class));
         
         $this->assertEquals([], $router->getMiddlewares(), "Middlewares array should be empty");
 
@@ -203,7 +203,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $middleware = $this->createCallbackMock($invokeMiddleware, [$request, $response], 'foo');
         $next = $this->createCallbackMock($invokeNext, [$request, $response], 'zoo');
         
-        $router = new Router($this->createMock(Routes::class));
+        $router = new Router($this->createMock(RoutesInterface::class));
         $router->add('/foo', $middleware);
         
         list($fn) = $router->getMiddlewares() + [null];
@@ -220,7 +220,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
      */
     public function testAddInvalidMiddleware()
     {
-        $router = new Router($this->createMock(Routes::class));
+        $router = new Router($this->createMock(RoutesInterface::class));
         $router->add('foo bar zoo');
     }
     
@@ -232,7 +232,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
     {
         $middleware = $this->createCallbackMock($this->never());
         
-        $router = new Router($this->createMock(Routes::class));
+        $router = new Router($this->createMock(RoutesInterface::class));
         $router->add('foobar', $middleware);
     }
     
@@ -240,7 +240,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
     {
         $middleware = $this->createCallbackMock($this->never());
         
-        $router = new Router($this->createMock(Routes::class));
+        $router = new Router($this->createMock(RoutesInterface::class));
         @$router->add('foobar', $middleware);
         
         $this->assertCount(1, $router->getMiddlewares());
@@ -285,7 +285,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         
         $runner = $this->createCallbackMock($this->once(), [$requestTwo, $responseTwo], $finalResponse);
 
-        $routes = $this->createMock(Routes::class);
+        $routes = $this->createMock(RoutesInterface::class);
         $routes->expects($this->once())->method('getRoute')->with($request)->willReturn($route);
 
         $router = new Router($routes);
@@ -332,7 +332,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         
         $runner = $this->createCallbackMock($this->once(), [$requestOne, $responseOne], $finalResponse);
 
-        $routes = $this->createMock(Routes::class);
+        $routes = $this->createMock(RoutesInterface::class);
         $routes->expects($this->once())->method('getRoute')->with($request)->willReturn($route);
 
         $router = new Router($routes);

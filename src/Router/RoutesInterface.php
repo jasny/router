@@ -7,7 +7,7 @@ use Psr\Http\Message\ServerRequestInterface;
 /**
  * Collection of routes
  */
-interface Routes
+interface RoutesInterface
 {
     /**
      * Check if a route for the request exists
