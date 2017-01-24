@@ -6,11 +6,10 @@ use Jasny\Router\Route;
 use Jasny\Router\Runner;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
-
 use org\bovigo\vfs\vfsStream;
 use org\bovigo\vfs\vfsStreamDirectory;
-
-use Jasny\Router\TestHelpers;
+use Jasny\TestHelper;
+use Jasny\Router\MockResponse;
 
 /**
  * @covers Jasny\Router\Runner\PhpScript
@@ -19,8 +18,9 @@ use Jasny\Router\TestHelpers;
  */
 class PhpScriptTest extends \PHPUnit_Framework_TestCase
 {
-    use TestHelpers;
-    
+    use TestHelper;
+    use MockResponse;
+
     /**
      * @var vfsStreamDirectory
      */

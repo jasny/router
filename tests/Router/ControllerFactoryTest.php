@@ -3,14 +3,14 @@
 namespace Jasny\Router;
 
 use Jasny\Router\ControllerFactory;
-use Jasny\Router\TestHelpers;
+use Jasny\TestHelper;
 
 /**
  * @covers Jasny\Router\ControllerFactory
  */
 class ControllerFactoryTest extends \PHPUnit_Framework_TestCase
 {
-    use TestHelpers;
+    use TestHelper;
     
     public function testInvoke()
     {

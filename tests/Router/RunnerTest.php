@@ -4,14 +4,14 @@ use Jasny\Router\Runner;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
-use Jasny\Router\TestHelpers;
+use Jasny\TestHelper;
 
 /**
  * @covers Jasny\Router\Runner
  */
 class RunnerTest extends PHPUnit_Framework_TestCase
 {
-    use TestHelpers;
+    use TestHelper;
     
     /**
      * Test runner __invoke method

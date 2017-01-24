@@ -7,8 +7,8 @@ use Jasny\Router\Runner;
 use Jasny\Router\ControllerFactory;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
-
-use Jasny\Router\TestHelpers;
+use Jasny\TestHelper;
+use Jasny\Router\MockResponse;
 
 /**
  * @covers Jasny\Router\Runner\Controller
@@ -17,7 +17,8 @@ use Jasny\Router\TestHelpers;
  */
 class ControllerTest extends \PHPUnit_Framework_TestCase
 {
-    use TestHelpers;
+    use TestHelper;
+    use MockResponse;
     
     public function testInvoke()
     {

@@ -12,14 +12,14 @@ use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UriInterface;
 use PHPUnit_Framework_MockObject_Matcher_InvokedCount as InvokedCount;
 
-use Jasny\Router\TestHelpers;
+use Jasny\TestHelper;
 
 /**
  * @covers Jasny\Router
  */
 class RouterTest extends \PHPUnit_Framework_TestCase
 {
-    use TestHelpers;
+    use TestHelper;
     
     /**
      * Test creating Router

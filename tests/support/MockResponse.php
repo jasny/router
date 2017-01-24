@@ -2,55 +2,15 @@
 
 namespace Jasny\Router;
 
-use PHPUnit_Framework_MockObject_Matcher_Invocation as Invocation;
-use PHPUnit_Framework_MockObject_MockObject as MockObject;
-
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 
 /**
- * Helper methods for PHPUnit tests
+ * Helper methods for PHPUnit tests to mock a specific response
  */
-trait TestHelpers
+trait MockResponse
 {
-    /**
-     * Create mock for next callback
-     * 
-     * @param Invocation  $matcher
-     * @param array       $with     With arguments
-     * @param mixed       $return
-     * @return MockObject
-     */
-    protected function createCallbackMock(Invocation $matcher, $with = [], $return = null)
-    {
-        $callback = $this->getMockBuilder(\stdClass::class)->setMethods(['__invoke'])->getMock();
-        $callback->expects($matcher)->method('__invoke')
-            ->with(...$with)
-            ->willReturn($return);
-        
-        return $callback;
-    }
-    
-    /**
-     * Assert a non-fatal error
-     * 
-     * @param int    $type
-     * @param string $message
-     */
-    protected function assertLastError($type, $message)
-    {
-        $error = error_get_last();
-        
-        $expect = compact('type', 'message');
-        
-        if (is_array($error)) {
-            $error = array_intersect_key($error, $expect);
-        }
-        
-        $this->assertEquals($expect, $error);
-    }
-    
     /**
      * Mock the calls for a 404 Not Found response
      * 

@@ -5,17 +5,17 @@ namespace Jasny\Router\Middleware;
 use Jasny\Router\Middleware\BasePath;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UriInterface;
-
-use Jasny\Router\TestHelpers;
+use Jasny\TestHelper;
+use Jasny\Router\MockResponse;
 
 /**
  * @covers Jasny\Router\Middleware\BasePath
  */
 class BasePathTest extends \PHPUnit_Framework_TestCase
 {
-    use TestHelpers;
+    use TestHelper;
+    use MockResponse;
     
     /**
      * Provide data for testing invalid BasePath creation
@@ -30,7 +30,7 @@ class BasePathTest extends \PHPUnit_Framework_TestCase
             [null],
             [false],
             [['test']],
-            [(object)['test']],
+            [(object)['foo' => 'test']],
             [12345]
         ];
     }

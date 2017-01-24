@@ -8,11 +8,11 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\UriInterface;
 
-use Jasny\Router\TestHelpers;
+use Jasny\TestHelper;
 
 class ErrorPageTest extends PHPUnit_Framework_TestCase
 {
-    use TestHelpers;
+    use TestHelper;
     
     public function testGetRouter()
     {
