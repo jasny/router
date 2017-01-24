@@ -225,7 +225,10 @@ class Router implements RouterInterface
      */
     protected function notFound(ServerRequestInterface $request, ResponseInterface $response)
     {
-        $notFound = $response->withStatus(404);
+        $notFound = $response
+            ->withProtocolVersion($request->getProtocolVersion())
+            ->withStatus(404);
+        
         $notFound->getBody()->write('Not Found');
 
         return $notFound;
