@@ -11,7 +11,7 @@ use Jasny\Router\MockResponse;
 
 /**
  * @covers Jasny\Router\Runner\Delegate
- * @covers Jasny\Router\Helpers\NotFound
+ * @covers Jasny\Router\Helper\NotFound
  */
 class DelegateTest extends \PHPUnit_Framework_TestCase
 {

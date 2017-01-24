@@ -12,7 +12,7 @@ use Jasny\Router\MockResponse;
 /**
  * @covers Jasny\Router\Runner\Callback
  * @covers Jasny\Router\Runner\Implementation
- * @covers Jasny\Router\Helpers\NotFound
+ * @covers Jasny\Router\Helper\NotFound
  */
 class CallbackTest extends \PHPUnit_Framework_TestCase
 {

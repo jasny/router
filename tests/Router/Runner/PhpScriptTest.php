@@ -14,7 +14,7 @@ use Jasny\Router\MockResponse;
 /**
  * @covers Jasny\Router\Runner\PhpScript
  * @covers Jasny\Router\Runner\Implementation
- * @covers Jasny\Router\Helpers\NotFound
+ * @covers Jasny\Router\Helper\NotFound
  */
 class PhpScriptTest extends \PHPUnit_Framework_TestCase
 {

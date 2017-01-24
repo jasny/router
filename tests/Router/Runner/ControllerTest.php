@@ -13,7 +13,7 @@ use Jasny\Router\MockResponse;
 /**
  * @covers Jasny\Router\Runner\Controller
  * @covers Jasny\Router\Runner\Implementation
- * @covers Jasny\Router\Helpers\NotFound
+ * @covers Jasny\Router\Helper\NotFound
  */
 class ControllerTest extends \PHPUnit_Framework_TestCase
 {

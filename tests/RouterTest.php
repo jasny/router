@@ -134,6 +134,9 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $finalResponse = $this->createMock(ResponseInterface::class);
         $body = $this->createMock(StreamInterface::class);
 
+        $request->method('getProtocolVersion')->willReturn('1.0');
+        
+        $response->expects($this->once())->method('withProtocolVersion')->with('1.0')->willReturnSelf();
         $response->expects($this->once())->method('withStatus')->with(404)->willReturn($finalResponse);
         $finalResponse->expects($this->once())->method('getBody')->willReturn($body);
         $body->expects($this->once())->method('write')->with('Not Found');
