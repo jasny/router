@@ -2,6 +2,7 @@
 
 namespace Jasny;
 
+use Jasny\RouterInterface;
 use Jasny\Router\Routes;
 use Jasny\Router\Route;
 use Jasny\Router\Runner;
@@ -11,7 +12,7 @@ use Psr\Http\Message\ResponseInterface;
 /**
  * Route pretty URLs to correct controller
  */
-class Router
+class Router implements RouterInterface
 {
     /**
      * Specific routes
@@ -190,7 +191,8 @@ class Router
     }
 
     /**
-     * Run the action
+     * Run the action.
+     * This method doesn't call the middlewares, but only run the action.
      *
      * @param ServerRequestInterface $request
      * @param ResponseInterface      $response

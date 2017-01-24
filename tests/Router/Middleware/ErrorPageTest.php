@@ -1,6 +1,6 @@
 <?php
 
-use Jasny\Router;
+use Jasny\RouterInterface;
 use Jasny\Router\Route;
 use Jasny\Router\Routes;
 use Jasny\Router\Middleware\ErrorPage;
@@ -16,7 +16,7 @@ class ErrorPageTest extends PHPUnit_Framework_TestCase
     
     public function testGetRouter()
     {
-        $router = $this->createMock(Router::class);
+        $router = $this->createMock(RouterInterface::class);
         $middleware = new ErrorPage($router);
         
         $this->assertSame($router, $middleware->getRouter());
@@ -29,7 +29,7 @@ class ErrorPageTest extends PHPUnit_Framework_TestCase
      */
     public function testInvokeInvalidNext()
     {
-        $router = $this->createMock(Router::class);
+        $router = $this->createMock(RouterInterface::class);
         $middleware = new ErrorPage($router);
         
         $request = $this->createMock(ServerRequestInterface::class);
@@ -96,7 +96,7 @@ class ErrorPageTest extends PHPUnit_Framework_TestCase
         
         $runner = $this->createCallbackMock($this->exactly($run), [$runnerRequest, $nextResponse], $errorResponse);
         
-        $router = $this->createMock(Router::class);
+        $router = $this->createMock(RouterInterface::class);
         $router->method('getRoutes')->willReturn($routes);
         $router->method('getRunner')->willReturn($runner);
         

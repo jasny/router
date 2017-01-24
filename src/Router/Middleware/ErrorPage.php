@@ -2,7 +2,7 @@
 
 namespace Jasny\Router\Middleware;
 
-use Jasny\Router;
+use Jasny\RouterInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -20,9 +20,9 @@ class ErrorPage
     /**
      * Class constructor
      * 
-     * @param Router $router
+     * @param RouterInterface $router
      */
-    public function __construct(Router $router)
+    public function __construct(RouterInterface $router)
     {
         $this->router = $router;
     }
@@ -30,7 +30,7 @@ class ErrorPage
     /**
      * Get router connected to middleware
      *
-     * @return Router
+     * @return RouterInterface
      */
     public function getRouter()
     {
