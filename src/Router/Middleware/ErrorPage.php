@@ -3,6 +3,7 @@
 namespace Jasny\Router\Middleware;
 
 use Jasny\RouterInterface;
+use Jasny\HttpMessage\GlobalEnvironmentInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -54,8 +55,49 @@ class ErrorPage
         $nextResponse = $next($request, $response); 
         
         return $this->isErrorStatus($nextResponse->getStatusCode())
-            ? $this->routeToErrorPage($request, $nextResponse)
+            ? $this->routeToErrorPage($this->reviveRequest($request), $nextResponse)
             : $nextResponse;
+    }
+
+    /**
+     * Revive a stale request
+     * 
+     * @param ServerRequestInterface $request
+     * @return ServerRequestInterface
+     */
+    protected function reviveRequest(ServerRequestInterface $request)
+    {
+        $isStale = interface_exists('Jasny\HttpMessage\GlobalEnvironmentInterface') &&
+            $request instanceof GlobalEnvironmentInterface &&
+            $request->isStale();
+        
+        return $isStale ? $request->revive() : $request;
+    }
+    
+    /**
+     * Get the route to the error page
+     * 
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface $response
+     * @return Router\Route
+     */
+    protected function getErrorRoute(ServerRequestInterface $request, ResponseInterface $response)
+    {
+        if (
+            interface_exists('Jasny\HttpMessage\GlobalEnvironmentInterface') &&
+            $request instanceof GlobalEnvironmentInterface
+        ) {
+            $request = $request->withoutGlobalEnvironment();
+        }
+        
+        $status = $response->getStatusCode();
+        
+        $errorUri = $request->getUri()
+            ->withPath($status)
+            ->withQuery(null)
+            ->withFragment(null);
+        
+        return $this->router->getRoutes()->getRoute($request->withUri($errorUri));
     }
     
     /**
@@ -67,14 +109,7 @@ class ErrorPage
      */
     protected function routeToErrorPage(ServerRequestInterface $request, ResponseInterface $response)
     {
-        $status = $response->getStatusCode();
-        
-        $errorUri = $request->getUri()
-            ->withPath($status)
-            ->withQuery(null)
-            ->withFragment(null);
-        
-        $errorRoute = $this->router->getRoutes()->getRoute($request->withUri($errorUri));
+        $errorRoute = $this->getErrorRoute($request, $response);
         
         if (!isset($errorRoute)) {
             return $response;
