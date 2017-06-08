@@ -5,6 +5,7 @@ namespace Jasny\Router\Routes;
 use Jasny\Router\Routes\Glob;
 use Jasny\Router\Route;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\UriInterface;
 
 use ArrayObject;
@@ -92,6 +93,21 @@ class GlobTest extends \PHPUnit_Framework_TestCase
         }
         
         return $glob;
+    }
+    
+    public function testImplicitFnRoute()
+    {
+        $fn = function(ServerRequestInterface $request, ResponseInterface $response) {
+            return $response;
+        };
+        
+        $glob = new Glob(['/' => $fn]);
+        
+        $this->assertCount(1, $glob, "Routes count do not match");
+        $this->assertArrayHasKey('/', $glob->getArrayCopy());
+        
+        $this->assertInstanceof(Route::class, $glob['/']);
+        $this->assertAttributeSame($fn, 'fn', $glob['/']);
     }
     
     

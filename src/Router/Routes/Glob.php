@@ -46,6 +46,10 @@ class Glob extends ArrayObject implements RoutesInterface
             $value = (object)$value;
         }
         
+        if (is_object($value) && is_callable($value)) {
+            $value = (object)['fn' => $value];
+        }
+        
         if (!$value instanceof \stdClass) {
             throw new \InvalidArgumentException("Unable to create a Route from value " . var_export($value, true));
         }

@@ -16,8 +16,8 @@ class Callback
     /**
      * Use function to handle request and response
      * 
-     * @param ServerRequestInterface  $request
-     * @param ResponseInterface $response
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface      $response
      * @return ResponseInterface|mixed
      */
     public function run(ServerRequestInterface $request, ResponseInterface $response)
